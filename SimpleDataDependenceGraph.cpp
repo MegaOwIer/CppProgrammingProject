@@ -4,19 +4,19 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/CFG.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/ModuleSlotTracker.h>
+#include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/Support/Casting.h>
+#include <llvm/Support/raw_ostream.h>
 #include <stack>
 #include <utility>
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/ModuleSlotTracker.h"
-#include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/IR/Instructions.h"
+
 #include "SimpleDataDependenceGraph.h"
 
-namespace miner
-{
+namespace miner {
 
 using std::endl;
 using std::list;
@@ -26,12 +26,10 @@ using std::stack;
 
 
 // TRUE for successful insertion; FALSE indicates an existing pair.
-bool SDDG::share(Instruction *fst, Instruction *snd)
-{
+bool SDDG::share(Instruction *fst, Instruction *snd) {
     pair<Instruction *, Instruction *> p1(fst, snd);
     pair<Instruction *, Instruction *> p2(snd, fst);
-    if (mShares.find(p1) == mShares.end() && mShares.find(p2) == mShares.end())
-    {
+    if (mShares.find(p1) == mShares.end() && mShares.find(p2) == mShares.end()) {
         mShares.insert(p1);
         return true;
     }
@@ -76,59 +74,49 @@ SDDG::~SDDG() {
     mShares.clear();
 }
 
-namespace
-{
-void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *, Instruction *>> &shares, string &file, bool showShareRelations)
-{
+namespace {
+
+void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *, Instruction *>> &shares, string &file, bool showShareRelations) {
     ofstream fos;
     fos.open(file);
     fos << "digraph {\n"
         << endl;
-    for (auto iter = nodes.begin(); iter != nodes.end(); iter++)
-    {
+    for (auto iter = nodes.begin(); iter != nodes.end(); iter++) {
         Instruction *inst = iter->first;
         fos << "Inst" << (void *)inst << "[align = left, shape = box, label = \"";
         string label;
         raw_string_ostream rso(label);
         inst->print(rso);
         string::size_type pos(0);
-        while ((pos = label.find('"', pos)) != string::npos)
-        {
+        while ((pos = label.find('"', pos)) != string::npos) {
             label.replace(pos, 1, "'");
         }
         fos << label << "\"];" << endl;
     }
     fos << endl;
-    for (auto iter = nodes.begin(); iter != nodes.end(); iter++)
-    {
+    for (auto iter = nodes.begin(); iter != nodes.end(); iter++) {
         Instruction *src = iter->first;
         SDDGNode *node = iter->second;
         vector<SDDGNode *> successors = node->getSuccessors();
-        for (SDDGNode *succ : successors)
-        {
+        for (SDDGNode *succ : successors) {
             Instruction *dst = succ->getInst();
             fos << "Inst" << (void *)src << " -> Inst" << (void *)dst << " [dir=back];" << endl;
         }
     }
     fos << endl;
-    if (showShareRelations || nodes.empty())
-    {
-        if (nodes.empty())
-        {
-            for (pair<Instruction *, Instruction *> pp : shares)
-            {
+    if (showShareRelations || nodes.empty()) {
+        if (nodes.empty()) {
+            for (pair<Instruction *, Instruction *> pp : shares) {
                 Instruction *inst1[2] = {pp.first, pp.second};
                 Instruction *inst;
-                for (int idx = 0; idx < 2; idx++)
-                {
+                for (int idx = 0; idx < 2; idx++) {
                     inst = inst1[idx];
                     fos << "Inst" << (void *)inst << "[align = left, shape = box, label = \"";
                     string label;
                     raw_string_ostream rso(label);
                     inst->print(rso);
                     string::size_type pos(0);
-                    while ((pos = label.find('"', pos)) != string::npos)
-                    {
+                    while ((pos = label.find('"', pos)) != string::npos) {
                         label.replace(pos, 1, "'");
                     }
                     fos << label << "\"];" << endl;
@@ -136,8 +124,7 @@ void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *,
             }
             fos << endl;
         }
-        for (pair<Instruction *, Instruction *> pp : shares)
-        {
+        for (pair<Instruction *, Instruction *> pp : shares) {
             Instruction *inst1 = pp.first;
             Instruction *inst2 = pp.second;
             fos << "Inst" << (void *)inst1 << " -> Inst" << (void *)inst2 << " [dir=none, color=red, style=dashed];" << endl;
@@ -146,61 +133,51 @@ void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *,
     fos << "}" << endl;
     fos.close();
 }
+
 } // namespace
 
-void SDDG::dotify(bool showShareRelations)
-{
+void SDDG::dotify(bool showShareRelations) {
     std::string file = mFunc->getName().str() + ".dot";
     dotifyToFile(mNodes, mShares, file, showShareRelations);
-    if (!mInterestingNodes.empty())
-    {
+    if (!mInterestingNodes.empty()) {
         file = mFunc->getName().str() + ".flat.dot";
         dotifyToFile(mInterestingNodes, mShares, file, showShareRelations);
     }
 }
 
-namespace dfa
-{
-class Definition
-{
+namespace dfa {
+
+class Definition {
     map<Value *, Instruction *> mDef;
 
 public:
     Definition() = default;
-    ~Definition()
-    {
+    ~Definition() {
         mDef.clear();
     }
-    void define(Value *var, Instruction *inst)
-    {
+    void define(Value *var, Instruction *inst) {
         mDef[var] = inst;
     }
-    map<Value *, Instruction *> &getDef()
-    {
+    map<Value *, Instruction *> &getDef() {
         return mDef;
     }
-    Instruction *getDef(Value *var)
-    {
+    Instruction *getDef(Value *var) {
         auto iter = mDef.find(var);
-        if (iter != mDef.end())
-        {
+        if (iter != mDef.end()) {
             return iter->second;
         }
         return nullptr;
     }
     // 输出当前基本块的Definition信息，主要用于测试、检查代码正确性
-    void dump()
-    {
+    void dump() {
         errs() << "Definitions: \n";
-        for (auto iter = mDef.begin(); iter != mDef.end(); iter++)
-        {
+        for (auto iter = mDef.begin(); iter != mDef.end(); iter++) {
             errs() << *(iter->first) << "  <-  " << *(iter->second) << "\n";
         }
         errs() << "\n";
     }
 };
 
-///////////////////////////
 class Use {
     map<Value *, set<Instruction *> *> mUse;
 
@@ -232,103 +209,81 @@ public:
         }
         return;
     }
-    void dump()
-    {
+    void dump() {
         errs() << "Use:\n";
-        for (auto iter = mUse.begin(); iter != mUse.end(); iter++)
-        {
+        for (auto iter = mUse.begin(); iter != mUse.end(); iter++) {
             Value *key = iter->first;
             set<Instruction *> *val = iter->second;
             errs() << " Use: " << *key << "  at \n";
-            for (Instruction *vv : *val)
-            {
+            for (Instruction *vv : *val) {
                 errs() << "  ++ " << *vv << "\n";
             }
         }
     }
 };
-///////////////////////////
 
 // 以下两个以“Share”开始的类仅用于计算数据共享关系
-class ShareDefinition
-{
+class ShareDefinition {
     map<Value *, set<Value *> *> mShareDef;
 
 public:
     ShareDefinition() = default;
-    ~ShareDefinition()
-    {
-        for (auto iter = mShareDef.begin(); iter != mShareDef.end(); iter++)
-        {
+    ~ShareDefinition() {
+        for (auto iter = mShareDef.begin(); iter != mShareDef.end(); iter++) {
             set<Value *> *sdefs = iter->second;
-            if (sdefs)
-                delete sdefs;
+            if (sdefs) delete sdefs;
         }
         mShareDef.clear();
     }
-    map<Value *, set<Value *> *> &getShareDefs()
-    {
+    map<Value *, set<Value *> *> &getShareDefs() {
         return mShareDef;
     }
-    set<Value *> *getShareDef(Value *var)
-    {
+    set<Value *> *getShareDef(Value *var) {
         auto iter = mShareDef.find(var);
-        if (iter != mShareDef.end())
-        {
+        if (iter != mShareDef.end()) {
             return iter->second;
         }
         return nullptr;
     }
-    void shareDefine(Value *var, Value *def)
-    {
+    void shareDefine(Value *var, Value *def) {
         auto iter = mShareDef.find(var);
         set<Value *> *vSet;
         set<Value *> *dSet = getShareDef(def);
-        if (iter != mShareDef.end())
-        {
+        if (iter != mShareDef.end()) {
             vSet = iter->second;
             vSet->clear(); // re-definition overrides all old ones.
         }
-        else
-        {
+        else {
             vSet = new set<Value *>;
             mShareDef[var] = vSet;
         }
-        if (dSet)
-        {
-            for (Value *ds : *dSet)
-            {
+        if (dSet) {
+            for (Value *ds : *dSet) {
                 vSet->insert(ds);
             }
         }
-        else
-        {
+        else {
             vSet->insert(def);
         }
     }
-    void dump()
-    {
+    void dump() {
         errs() << "ShareDefinition:\n";
-        for (auto iter = mShareDef.begin(); iter != mShareDef.end(); iter++)
-        {
+        for (auto iter = mShareDef.begin(); iter != mShareDef.end(); iter++) {
             Value *key = iter->first;
             set<Value *> *val = iter->second;
             errs() << " Define: " << *key << "  as \n";
-            for (Value *vv : *val)
-            {
+            for (Value *vv : *val) {
                 errs() << "  ++ " << *vv << "\n";
             }
         }
     }
 };
-class ShareUse
-{
+
+class ShareUse {
     map<Value *, set<Instruction *> *> mShareUse;
-    set<Instruction *> *findOrCreateSharedUse(Value *var)
-    {
+    set<Instruction *> *findOrCreateSharedUse(Value *var) {
         auto iter = mShareUse.find(var);
-        if (iter != mShareUse.end())
-            return iter->second;
+        if (iter != mShareUse.end()) return iter->second;
         set<Instruction *> *sSet = new set<Instruction *>;
         mShareUse[var] = sSet;
         return sSet;
@@ -336,34 +291,25 @@ class ShareUse
 
 public:
     ShareUse() = default;
-    ~ShareUse()
-    {
-        for (auto iter = mShareUse.begin(); iter != mShareUse.end(); iter++)
-        {
+    ~ShareUse() {
+        for (auto iter = mShareUse.begin(); iter != mShareUse.end(); iter++) {
             set<Instruction *> *suses = iter->second;
-            if (suses)
-                delete suses;
+            if (suses) delete suses;
         }
         mShareUse.clear();
     }
-    map<Value *, set<Instruction *> *> &getShareUses()
-    {
+    map<Value *, set<Instruction *> *> &getShareUses() {
         return mShareUse;
     }
-    set<Instruction *> *getShareUse(Value *var)
-    {
+    set<Instruction *> *getShareUse(Value *var) {
         auto iter = mShareUse.find(var);
-        if (iter != mShareUse.end())
-            return iter->second;
+        if (iter != mShareUse.end()) return iter->second;
         return nullptr;
     }
-    void shareUse(Value *var, Instruction *inst, ShareDefinition *sdef)
-    {
+    void shareUse(Value *var, Instruction *inst, ShareDefinition *sdef) {
         set<Value *> *vDef = sdef->getShareDef(var);
-        if (vDef)
-        {
-            for (Value *vd : *vDef)
-            {
+        if (vDef) {
+            for (Value *vd : *vDef) {
                 set<Instruction *> *vdUse = findOrCreateSharedUse(vd);
                 vdUse->insert(inst);
             }
@@ -372,16 +318,13 @@ public:
         set<Instruction *> *vUse = findOrCreateSharedUse(var);
         vUse->insert(inst);
     }
-    void dump()
-    {
+    void dump() {
         errs() << "ShareUse:\n";
-        for (auto iter = mShareUse.begin(); iter != mShareUse.end(); iter++)
-        {
+        for (auto iter = mShareUse.begin(); iter != mShareUse.end(); iter++) {
             Value *key = iter->first;
             set<Instruction *> *val = iter->second;
             errs() << " Use: " << *key << "  at \n";
-            for (Instruction *vv : *val)
-            {
+            for (Instruction *vv : *val) {
                 errs() << "  ++ " << *vv << "\n";
             }
         }
@@ -389,33 +332,25 @@ public:
 };
 
 template <typename TK, typename TV>
-TV *findOrCreate(map<TK *, TV *> &ian, TK *bb)
-{
+TV *findOrCreate(map<TK *, TV *> &ian, TK *bb) {
     auto iter = ian.find(bb);
     TV *agr = nullptr;
-    if (iter == ian.end())
-    {
+    if (iter == ian.end()) {
         agr = new TV;
         ian[bb] = agr;
     }
-    else
-    {
+    else {
         agr = iter->second;
     }
     return agr;
 }
 
-// TRUE for changes in 'to'; FALSE for no changes in 'to'.
+/* Merge two maps.
+ * Returns TRUE for changes in 'to' and FALSE for no changes in 'to'.
+ */
 template <typename TSE>
-bool mergeTwoMaps(map<Value *, set<TSE *> *> &to, map<Value *, set<TSE *> *> &from)
-{
+bool mergeTwoMaps(map<Value *, set<TSE *> *> &to, const map<Value *, set<TSE *> *> &from) {
     bool changed = false;
-    //////////////////////////////
-    //  请在此实现map的合并操作，该函数可用于迭代数据流分析中的“并集”操作，
-    //  在计算数据依赖关系、数据共享关系时均被大量使用。
-    //  对模板尚不熟悉的同学，可以实现多个不同的函数，用于不同的目的。
-    //  该函数的返回值为true时，表示合并操作之后，'to'相比合并之前发生了改变，
-    //  false表示未发生改变。
     for (auto iter : from) {
         Value *var = iter.first;
         set<TSE *> *fromSet = iter.second;
@@ -431,13 +366,12 @@ bool mergeTwoMaps(map<Value *, set<TSE *> *> &to, map<Value *, set<TSE *> *> &fr
             changed = true;
         }
     }
-    //////////////////////////////
     return changed;
 }
+
 } // namespace dfa
 
-void SDDG::buildSDDG()
-{
+void SDDG::buildSDDG() {
     ////////////////////////////
     // 在这里实现构建数据依赖关系的代码，可按照如下基本步骤进行：
     map<BasicBlock *, dfa::Definition *> dfaDepDefs;
@@ -505,7 +439,7 @@ void SDDG::buildSDDG()
                         bbUse->use(var, inst);
                 }
             }
-            else if (Instruction::Ret == inst->getOpcode() || Instruction::Br == inst->getOpcode()){       // 返回和分支跳转
+            else if (Instruction::Ret == inst->getOpcode() || Instruction::Br == inst->getOpcode()) {      // 返回和分支跳转
                 unsigned int nOprands = inst->getNumOperands();
                 bool interesting = false;
                 for (unsigned int idxo = 0; idxo < nOprands; idxo++) {
@@ -662,35 +596,28 @@ void SDDG::buildSDDG()
     map<BasicBlock *, dfa::ShareDefinition *> sDfaShareDefs;
     map<BasicBlock *, dfa::ShareUse *> sDfaShareUses;
     // 1. scan for initializing ShareDef and ShareUse of each BB
-    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++)
-    {
+    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
         dfa::ShareDefinition *bbSDef = dfa::findOrCreate(sDfaShareDefs, &bb);
         dfa::ShareUse *bbSUse = dfa::findOrCreate(sDfaShareUses, &bb);
-        for (auto instIter = bb.begin(); instIter != bb.end(); instIter++)
-        {
+        for (auto instIter = bb.begin(); instIter != bb.end(); instIter++) {
             Instruction *inst = dyn_cast<Instruction>(instIter);
             // errs() << "Analyze Inst: " << *inst << "  **#OP: " << inst->getNumOperands() << "\n";
-            if (Instruction::Alloca == inst->getOpcode())
-            {
+            if (Instruction::Alloca == inst->getOpcode()) {
                 continue;
             }
-            else if (Instruction::Store == inst->getOpcode())
-            {
+            else if (Instruction::Store == inst->getOpcode()) {
                 Value *fstOp = inst->getOperand(0);
                 Value *sndOp = inst->getOperand(1);
-                if (isa<Argument>(fstOp) || isa<Instruction>(fstOp)) // e.g., fstOp is "x = call f()"
-                {
+                if (isa<Argument>(fstOp) || isa<Instruction>(fstOp)) {  // e.g., fstOp is "x = call f()"
                     bbSDef->shareDefine(sndOp, fstOp);
                 }
-                else // should we consider usages of the same constant as a DataShare?
-                {
+                else { // should we consider usages of the same constant as a DataShare?
                     bbSDef->shareDefine(sndOp, inst);
                 }
                 // no need to build ShareUse as we only care uses in interesting nodes (call, ret)
             }
-            else if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode())
-            {
+            else if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode()) {
                 unsigned int nOprands = inst->getNumOperands();
                 ////////////////////////////
                 // // 此处未考虑Intrinsic函数的处理，请自行添加。
@@ -702,34 +629,26 @@ void SDDG::buildSDDG()
                     }
                 }
                 ////////////////////////////
-                if (Instruction::Call == inst->getOpcode() && !inst->getType()->isVoidTy())
-                {
+                if (Instruction::Call == inst->getOpcode() && !inst->getType()->isVoidTy()) {
                     bbSDef->shareDefine(inst, inst);
                     --nOprands;
                 }
                 // build DataShare relations for all incoming uses that can be seen within this BB
-                for (unsigned int idxo = 0; idxo < nOprands; idxo++)
-                {
+                for (unsigned int idxo = 0; idxo < nOprands; idxo++) {
                     Value *op = inst->getOperand(idxo);
                     set<Instruction *> *opSUses = bbSUse->getShareUse(op);
-                    if (opSUses)
-                    {
-                        for (Instruction *opUse : *opSUses)
-                        {
+                    if (opSUses) {
+                        for (Instruction *opUse : *opSUses) {
                             share(inst, opUse);
                         }
                     }
                     // as we do not obtain the ShareDef's uses in getShareUse(), we need a further step here.
                     set<Value *> *opSDefs = bbSDef->getShareDef(op);
-                    if (opSDefs)
-                    {
-                        for (Value *opDef : *opSDefs)
-                        {
+                    if (opSDefs) {
+                        for (Value *opDef : *opSDefs) {
                             opSUses = bbSUse->getShareUse(opDef);
-                            if (opSUses)
-                            {
-                                for (Instruction *opUse : *opSUses)
-                                {
+                            if (opSUses) {
+                                for (Instruction *opUse : *opSUses) {
                                     share(inst, opUse);
                                 }
                             }
@@ -737,32 +656,25 @@ void SDDG::buildSDDG()
                     }
                 }
                 // update ShareUse
-                for (unsigned int idxo = 0; idxo < nOprands; idxo++)
-                {
+                for (unsigned int idxo = 0; idxo < nOprands; idxo++) {
                     Value *op = inst->getOperand(idxo);
-                    if (isa<Argument>(op) || isa<Instruction>(op))
-                    {
+                    if (isa<Argument>(op) || isa<Instruction>(op)) {
                         bbSUse->shareUse(op, inst, bbSDef);
                     }
                 }
             }
-            else if (Instruction::Br == inst->getOpcode())
-            {
+            else if (Instruction::Br == inst->getOpcode()) {
                 // skip. do nothing for 'br'
             }
-            else
-            {
+            else {
                 // for other instructions, 'operand's exist only at RHS??
                 // ShareUse does nothing, but ShareDef may be updated
-                if (inst->use_empty()) // not a definition
-                {
+                if (inst->use_empty()) {  // not a definition
                     continue;
                 }
-                for (unsigned int idxo = 0; idxo < inst->getNumOperands(); idxo++)
-                {
+                for (unsigned int idxo = 0; idxo < inst->getNumOperands(); idxo++) {
                     Value *op = inst->getOperand(idxo);
-                    if (isa<Argument>(op) || isa<Instruction>(op))
-                    {
+                    if (isa<Argument>(op) || isa<Instruction>(op)) {
                         bbSDef->shareDefine(inst, op);
                     }
                 }
@@ -775,12 +687,10 @@ void SDDG::buildSDDG()
     // 2. iteratively compute IN/OUT for ShareDef and ShareUse
     changed = true;
     int round = 1;
-    while (changed)
-    {
+    while (changed) {
         round++;
         changed = false;
-        for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++)
-        {
+        for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
             BasicBlock &bb = *bbIter;
             dfa::ShareDefinition *bbSDefIN = dfa::findOrCreate(sDefIN, &bb);
             dfa::ShareDefinition *bbSDefOUT = dfa::findOrCreate(sDefOUT, &bb);
@@ -789,8 +699,7 @@ void SDDG::buildSDDG()
             dfa::ShareDefinition tmpSDefIN, tmpSDefOUT;
             dfa::ShareUse tmpSUseIN, tmpSUseOUT;
             // 2.1 merge OUT to IN
-            for (auto predIter = bb.user_begin(); predIter != bb.user_end(); predIter++)
-            {
+            for (auto predIter = bb.user_begin(); predIter != bb.user_end(); predIter++) {
                 User *user = *predIter;
                 Instruction *terminator = dyn_cast<Instruction>(user);
                 BasicBlock *predBB = terminator->getParent();
@@ -818,17 +727,14 @@ void SDDG::buildSDDG()
             map<Value *, set<Value *> *> &bbSDefIns = bbSDefIN->getShareDefs();
             map<Value *, set<Value *> *> &bbSDefTmpOUT = tmpSDefOUT.getShareDefs();
             // bbDef->dump();
-            for (auto iter = bbSDefIns.begin(); iter != bbSDefIns.end(); iter++)
-            {
+            for (auto iter = bbSDefIns.begin(); iter != bbSDefIns.end(); iter++) {
                 Value *key = iter->first;
                 // copy from IN to tmpOUT only when not defined in current BB
                 // errs() << *key << '\n';
-                if (bbDefs.find(key) == bbDefs.end())
-                {
+                if (bbDefs.find(key) == bbDefs.end()) {
                     set<Value *> *alreadyInIN = iter->second;
                     set<Value *> *newTmpSet = new set<Value *>;
-                    for (Value *vv : *alreadyInIN)
-                    {
+                    for (Value *vv : *alreadyInIN) {
                         newTmpSet->insert(vv);
                     }
                     bbSDefTmpOUT[key] = newTmpSet;
@@ -842,17 +748,14 @@ void SDDG::buildSDDG()
             // 2.2.4 ShareUse: tmpOUT = IN(ShareUse : B) - Def(B)
             map<Value *, set<Instruction *> *> &bbSUseIns = bbSUseIN->getShareUses();
             map<Value *, set<Instruction *> *> &bbSUseTmpOUT = tmpSUseOUT.getShareUses();
-            for (auto iter = bbSUseIns.begin(); iter != bbSUseIns.end(); iter++)
-            {
+            for (auto iter = bbSUseIns.begin(); iter != bbSUseIns.end(); iter++) {
                 Value *key = iter->first;
                 auto miter = bbDefs.find(key);
                 // copy from IN to tmpOUT only when not defined in current BB
-                if (miter == bbDefs.end())
-                {
+                if (miter == bbDefs.end()) {
                     set<Instruction *> *alreadyInIN = iter->second;
                     set<Instruction *> *newTmpSet = new set<Instruction *>;
-                    for (Instruction *vv : *alreadyInIN)
-                    {
+                    for (Instruction *vv : *alreadyInIN) {
                         newTmpSet->insert(vv);
                     }
                     bbSUseTmpOUT[key] = newTmpSet;
@@ -871,29 +774,22 @@ void SDDG::buildSDDG()
         }
     }
     // 3. update DataShare with IN(ShareUse : B) and ShareUse(B)
-    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++)
-    {
+    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
         dfa::ShareDefinition *bbSDefIN = dfa::findOrCreate(sDefIN, &bb);
         dfa::ShareUse *bbSUseIN = dfa::findOrCreate(sUseIN, &bb);
         dfa::ShareUse *bbSUse = sDfaShareUses[&bb];
         map<Value *, set<Instruction *> *> &bbSuses = bbSUse->getShareUses();
-        for (auto iter = bbSuses.begin(); iter != bbSuses.end(); iter++)
-        {
+        for (auto iter = bbSuses.begin(); iter != bbSuses.end(); iter++) {
             Value *key = iter->first;
             set<Instruction *> *suseSet = iter->second;
             set<Value *> *sdefSet = bbSDefIN->getShareDef(key);
-            if (sdefSet)
-            {
-                for (Value *dv : *sdefSet)
-                {
+            if (sdefSet) {
+                for (Value *dv : *sdefSet) {
                     set<Instruction *> *duseSet = bbSUseIN->getShareUse(dv);
-                    if (duseSet)
-                    {
-                        for (Instruction *di : *duseSet)
-                        {
-                            for (Instruction *ds : *suseSet)
-                            {
+                    if (duseSet) {
+                        for (Instruction *di : *duseSet) {
+                            for (Instruction *ds : *suseSet) {
                                 share(ds, di);
                             }
                         }
@@ -945,4 +841,4 @@ void SDDG::flattenSDDG() {
     }
 }
 
-}// namespace miner
+} // namespace miner

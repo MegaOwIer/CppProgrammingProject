@@ -6,11 +6,10 @@
 #include <map>
 #include <string>
 
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
 
-namespace miner
-{
+namespace miner {
 
 using namespace llvm;
 using std::map;
@@ -19,14 +18,7 @@ using std::set;
 using std::string;
 using std::vector;
 
-/////////////////////////
-// 以下的数据结构与方法实现，请根据自己的设计做出调整与改进。
-// 若直接使用，请实现相应的成员函数，并添加可能需要用到的其他成员。
-// 请自行理解已有各成员的功能与用途。
-/////////////////////////
-
-class SDDGNode
-{
+class SDDGNode {
 private:
     Instruction *mInst;
     vector<SDDGNode *> mSuccessors;
@@ -42,8 +34,7 @@ public:
     vector<SDDGNode *> &getPredecessors();
 };
 
-class SDDG
-{
+class SDDG {
 private:
     Function *mFunc;
     map<Instruction *, SDDGNode *> mNodes;

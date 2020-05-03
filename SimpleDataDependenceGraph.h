@@ -30,15 +30,16 @@ class SDDGNode
 private:
     Instruction *mInst;
     vector<SDDGNode *> mSuccessors;
-//    vector<SDDGNode *> mPredecessors;
+    vector<SDDGNode *> mPredecessors;
 
 public:
     SDDGNode(Instruction *inst) : mInst(inst) {}
     ~SDDGNode();
     void addSuccessor(SDDGNode *dst);
-//    bool addPredecessor(SDDGNode *dst);
+    void addPredecessor(SDDGNode *dst);
     inline Instruction *getInst();
     vector<SDDGNode *> &getSuccessors();
+    vector<SDDGNode *> &getPredecessors();
 };
 
 class SDDG
@@ -56,6 +57,7 @@ public:
     // 创建数据依赖图及数据共享关系
     void buildSDDG();
     // 将数据依赖图中的无关元素去除，仅保留所关注的元素
+    void flattenDFS(SDDGNode *, Instruction *, std::set<Instruction *> &);
     void flattenSDDG();
     // 基于LLVM IR的信息，不做任何概念上的改变，创建数据依赖图
     void buildLegacySDDG();

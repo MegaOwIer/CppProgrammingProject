@@ -50,6 +50,10 @@ vector<SDDGNode *> &SDDGNode::getSuccessors() {
     return mSuccessors;
 }
 
+vector<SDDGNode *> &SDDGNode::getPredecessors() {
+    return mPredecessors;
+}
+
 inline Instruction *SDDGNode::getInst() {
     return mInst;
 }
@@ -58,6 +62,11 @@ SDDGNode::~SDDGNode() {}
 
 SDDG::~SDDG() {
     for (auto iter : mNodes) {
+        if (iter.second != nullptr)
+            delete iter.second;
+        iter.second = nullptr;
+    }
+    for (auto iter : mInterestingNodes) {
         if (iter.second != nullptr)
             delete iter.second;
         iter.second = nullptr;
@@ -903,6 +912,37 @@ void SDDG::buildSDDG()
     dfaDepDefs.clear(), dfaDepUses.clear();
     kill.clear();
     // //////////////////////////
+}
+
+void SDDG::flattenDFS(SDDGNode *self, Instruction *inst, set<Instruction *> &visited) {
+    SDDGNode *instNode = mNodes[inst];
+
+    for (auto iter : instNode->getPredecessors()) {
+        Instruction *nowInst = iter->getInst();
+        if (visited.find(nowInst) != visited.end()) continue;
+        visited.insert(nowInst);
+        if (Instruction::Call != nowInst->getOpcode() && Instruction::Ret != nowInst->getOpcode())         // 不是 call 和 ret 就继续遍历
+            flattenDFS(self, nowInst, visited);
+        else {                                                                                             // 是 call 或 ret 就连边返回
+            mInterestingNodes[nowInst]->addSuccessor(self);
+            self->addPredecessor(mInterestingNodes[nowInst]);
+        }
+    }
+}
+
+void SDDG::flattenSDDG() {
+    for (auto iter : mNodes) {                                                                             // 取出所有的 call 和 ret 语句
+        Instruction *inst = iter.first;
+        if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode())
+            mInterestingNodes[inst] = new SDDGNode(inst);
+    }
+    set<Instruction *> visited;
+    for (auto iter : mInterestingNodes) {
+        Instruction *inst = iter.first;
+        visited.insert(inst);
+        flattenDFS(mInterestingNodes[inst], inst, visited);                                                // 从一个 call 或 ret 开始遍历整个图
+        visited.clear();
+    }
 }
 
 }// namespace miner

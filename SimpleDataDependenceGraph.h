@@ -1,10 +1,10 @@
 #ifndef SIMPLESIMPLEDATADEPENDENCE_H_
 #define SIMPLESIMPLEDATADEPENDENCE_H_
 
-#include <vector>
-#include <set>
 #include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -52,10 +52,11 @@ public:
     void flattenSDDG();
     // 基于LLVM IR的信息，不做任何概念上的改变，创建数据依赖图
     void buildLegacySDDG();
-    // 提供将数据依赖图转化为dot文件的方法，对于将字符串映射为整数之后，如何转化，请自行设计实现。
-    // 参数指示是否将“数据共享关系”输出到dot文件中。
-    // 获得dot文件后（加上名为Test_func.dot，执行命令：dot -Tpng -o a.png Test_func.dot可生成相应
-    // 的图形文件（可修改输出格式，生成其他格式如jpg、svg等的图形文件）【需安装Graphviz】。
+    /* 提供将数据依赖图转化为dot文件的方法，对于将字符串映射为整数之后，如何转化，请自行设计实现。
+     * 参数指示是否将“数据共享关系”输出到dot文件中。
+     * 获得dot文件后（加上名为Test_func.dot，执行命令：dot -Tpng -o a.png Test_func.dot可生成相应
+     * 的图形文件（可修改输出格式，生成其他格式如jpg、svg等的图形文件）【需安装Graphviz】。
+     */
     void dotify(bool showShareRelations = true);
 };
 

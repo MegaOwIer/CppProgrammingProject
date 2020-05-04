@@ -371,37 +371,57 @@ bool mergeTwoMaps(map<Value *, set<TSE *> *> &to, const map<Value *, set<TSE *> 
 
 } // namespace dfa
 
+/* Clean a map in order to prevent memory leak.
+ */
+template <typename T>
+inline void mapCleaner(map<BasicBlock *, T *> &mp) {
+    for(auto cur : mp) {
+        if(cur.second != nullptr) {
+            delete cur.second;
+        }
+    }
+    mp.clear();
+}
+
 void SDDG::buildSDDG() {
-    ////////////////////////////
-    // 在这里实现构建数据依赖关系的代码，可按照如下基本步骤进行：
     map<BasicBlock *, dfa::Definition *> dfaDepDefs;
     map<BasicBlock *, dfa::Use *> dfaDepUses;
     // 1. 初始化每个基本块的gen和kill、definition和use，并建立基本块内部的数据依赖关系
-    // 初始化 Definitio 和 Use 并建立基本块内依赖关系
+    // 初始化 Definition 和 Use 并建立基本块内依赖关系
     for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
         dfa::Definition *bbDef = dfa::findOrCreate(dfaDepDefs, &bb);
         dfa::Use *bbUse = dfa::findOrCreate(dfaDepUses, &bb);
         for (auto instIter = bb.begin(); instIter != bb.end(); instIter++) {
             Instruction *inst = dyn_cast<Instruction>(instIter);
-            // errs() << *inst << '\n';
+            
+            #ifdef _LOCAL_DEBUG
+            errs() << *inst << '\n';
+            #endif
+
             if (Instruction::Alloca == inst->getOpcode()) {
                 continue;
             }
-            else if (Instruction::Store == inst->getOpcode()) {                                            // store fstOp, sndOp -> SndOp = fstOp
+            else if (Instruction::Store == inst->getOpcode()) {
+                // store fstOp, sndOp ==> sndOp = fstOp
                 mNodes[inst] = new SDDGNode(inst);
                 Value *fstOp = inst->getOperand(0);
                 Value *sndOp = inst->getOperand(1);
-                bbDef->define(sndOp, inst);                                                                // 对于 b 来说此处为一个 definition
 
-                if (bbDef->getDef().find(fstOp) != bbDef->getDef().end()) {                                // 如果 a 未在块内被定义则放入 Use 集合，否则建立块内依赖关系
+                // 对于 b 来说此处为一个 definition
+                bbDef->define(sndOp, inst);
+
+                // 如果 a 未在块内被定义则放入 Use 集合，否则建立块内依赖关系
+                if (bbDef->getDef().find(fstOp) != bbDef->getDef().end()) {
                     mNodes[bbDef->getDef()[fstOp]]->addSuccessor(mNodes[inst]);
                     mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[fstOp]]);
                 }
-                else
+                else {
                     bbUse->use(fstOp, inst);
+                }
             }
-            else if (Instruction::Load == inst->getOpcode()) {                                             // lValue = load op -> lValue = op
+            else if (Instruction::Load == inst->getOpcode()) {
+                // lValue = load op ==> lValue = op
                 mNodes[inst] = new SDDGNode(inst);
                 Value *lValue = dyn_cast<Value>(inst);
                 Value *op = inst->getOperand(0);
@@ -411,41 +431,52 @@ void SDDG::buildSDDG() {
                     mNodes[bbDef->getDef()[op]]->addSuccessor(mNodes[inst]);
                     mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[op]]);
                 }
-                else
+                else {
                     bbUse->use(op, inst);
+                }
             }
-            else if (Instruction::Call == inst->getOpcode()) {                                             // 函数调用
-                Function *func = (dyn_cast<CallInst>(inst))->getCalledFunction();                          // 检查 intrinsic 函数，只留下 memcpy
+            else if (Instruction::Call == inst->getOpcode()) {
+                // 函数调用
+                Function *func = (dyn_cast<CallInst>(inst))->getCalledFunction();
+                // 检查 intrinsic 函数，只留下 memcpy
                 if (func->isIntrinsic()) {
                     if (func->getIntrinsicID() != Intrinsic::memcpy)
                         continue;
                 }
 
                 mNodes[inst] = new SDDGNode(inst);
-                if (!inst->getType()->isVoidTy()) {                                                        // 不是 void 类型的函数则将返回值记为一个 definition
+                
+                // 不是 void 类型的函数则将返回值记为一个 definition
+                if (!inst->getType()->isVoidTy()) {
                     Value *lValue = dyn_cast<Value>(inst);
                     bbDef->define(lValue, inst);
                 }
 
-                unsigned int nOprands = inst->getNumOperands();
-                nOprands--;                                                                                // 最后一个 Operand 似乎是函数声明
-                for (unsigned int idxo = 0; idxo < nOprands; idxo++) {                                     // 参数计入 Use 集合
+                // 最后一个 Operand 似乎是函数声明
+                unsigned int nOprands = inst->getNumOperands() - 1;
+
+                // 参数计入 Use 集合
+                for (unsigned int idxo = 0; idxo < nOprands; idxo++) {
                     Value *var = inst->getOperand(idxo);
                     if (bbDef->getDef().find(var) != bbDef->getDef().end()) {
                         mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                         mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
                     }
-                    else
+                    else {
                         bbUse->use(var, inst);
+                    }
                 }
             }
-            else if (Instruction::Ret == inst->getOpcode() || Instruction::Br == inst->getOpcode()) {      // 返回和分支跳转
+            else if (Instruction::Ret == inst->getOpcode() || Instruction::Br == inst->getOpcode()) {
+                // 返回和分支跳转
                 unsigned int nOprands = inst->getNumOperands();
                 bool interesting = false;
                 for (unsigned int idxo = 0; idxo < nOprands; idxo++) {
                     Value *var = inst->getOperand(idxo);
-                    if (isa<Argument>(var) || isa<Instruction>(var)) {                                     // 检查是否有用到有实际意义的参数
-                        if (!interesting) {                                                                // 如果语句包含有意义的参数则在图中分配一个 node
+                    // 检查是否有用到有实际意义的参数
+                    if (isa<Argument>(var) || isa<Instruction>(var)) {
+                        // 如果语句包含有意义的参数则在图中分配一个 node
+                        if (!interesting) {
                             mNodes[inst] = new SDDGNode(inst);
                             interesting = true;
                         }
@@ -453,14 +484,17 @@ void SDDG::buildSDDG() {
                             mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                             mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
                         }
-                        else
+                        else {
                             bbUse->use(var, inst);
+                        }
                     }
                 }
             }
-            else {                                                                                         // 其它指令参考下方 share 代码实现
+            else {
+                // 其它指令参考下方 share 代码实现
                 bool interesting = false;
-                if (!inst->use_empty()) {                                                                  // 检查这个指令是否被使用过 -> 指令是否是一个定义？
+                // 检查这个指令是否被使用过 -> 指令是否是一个定义？
+                if (!inst->use_empty()) {
                     Value *lValue = dyn_cast<Value>(inst);
                     bbDef->define(lValue, inst);
                     mNodes[inst] = new SDDGNode(inst);
@@ -478,8 +512,9 @@ void SDDG::buildSDDG() {
                             mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                             mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
                         }
-                        else
+                        else {
                             bbUse->use(var, inst);
+                        }
                     }
                 }
                 if (interesting) mNodes[inst] = new SDDGNode(inst);
@@ -490,14 +525,20 @@ void SDDG::buildSDDG() {
     map<BasicBlock *, dfa::Use *> kill;
     for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
-        dfa::Definition *gen = dfaDepDefs[&bb];                                                            // 一个基本块的 gen 是它生成的变量语句，也就是被它定义过了
+        
+        // 一个基本块的 gen 是它生成的变量语句，也就是被它定义过了
+        dfa::Definition *gen = dfaDepDefs[&bb];
         dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
-        for (auto genIter = gen->getDef().begin(); genIter != gen->getDef().end(); genIter++) {            // 找到一个该基本块 gen 的变量
+        
+        // 找到一个该基本块 gen 的变量
+        for (auto genIter = gen->getDef().begin(); genIter != gen->getDef().end(); genIter++) {
             Value *var = genIter->first;
-            for (auto iter : predecessors(&bb)) {                                                          // 遍历前驱
+            // 遍历前驱
+            for (auto iter : predecessors(&bb)) {
                 dfa::Definition *pre = dfaDepDefs[iter];
                 if (pre->getDef().find(var) == pre->getDef().end()) continue;
-                Instruction *inst = pre->getDef()[var];                                                    // 前驱中定义了该变量则该块中的定义 kill 了前驱中的定义
+                // 前驱中定义了该变量则该块中的定义 kill 了前驱中的定义
+                Instruction *inst = pre->getDef()[var];
                 bbKill->use(var, inst);
             }
         }
@@ -507,7 +548,8 @@ void SDDG::buildSDDG() {
     map<BasicBlock *, dfa::Use *> IN, OUT;
     for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
-        dfa::Definition *gen = dfa::findOrCreate(dfaDepDefs, &bb);                                         // 初始化 OUT[B] = gen[B]
+        // 初始化 OUT[B] := gen[B]
+        dfa::Definition *gen = dfa::findOrCreate(dfaDepDefs, &bb);
         dfa::Use *bbOUT = dfa::findOrCreate(OUT, &bb);
         for (auto iter = gen->getDef().begin(); iter != gen->getDef().end(); iter++) {
             bbOUT->use(iter->first, iter->second);
@@ -521,12 +563,17 @@ void SDDG::buildSDDG() {
             BasicBlock &bb = *bbIter;
             dfa::Use *bbIN = dfa::findOrCreate(IN, &bb);
             for (auto iter : predecessors(&bb)) {
-                dfa::Use *preOUT = dfa::findOrCreate(OUT, iter);                                           // IN[B] = \/ OUT[P]
-                if (dfa::mergeTwoMaps(bbIN->getUse(), preOUT->getUse()))
+                // IN[B] := \/ OUT[P]
+                dfa::Use *preOUT = dfa::findOrCreate(OUT, iter);
+                if (dfa::mergeTwoMaps(bbIN->getUse(), preOUT->getUse())) {
                     changed = true;
+                }
             }
-            // errs() << changed << '\n';
-            if (changed) {                                                                                 // OUT[B] = gen[B] \/ (IN[B] - kill[B]) -> out[B] 改变意味着 IN[B] 改变
+            #ifdef _LOCAL_DEBUG
+            errs() << changed << '\n';
+            #endif
+            // OUT[B] = gen[B] \/ (IN[B] - kill[B]) ==> out[B] 改变意味着 IN[B] 改变
+            if (changed) {
                 dfa::Use *bbOUT = dfa::findOrCreate(OUT, &bb);
                 for (auto iter = bbOUT->getUse().begin(); iter != bbOUT->getUse().end(); iter++) {
                     set<Instruction *> *uses = iter->second;
@@ -535,14 +582,17 @@ void SDDG::buildSDDG() {
                 bbOUT->getUse().clear();                                                                   // 清空 OUT[B]
                 dfa::mergeTwoMaps(bbOUT->getUse(), bbIN->getUse());                                        // OUT[B] = IN[B]
                 dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
-                for (auto iter = bbKill->getUse().begin(); iter != bbKill->getUse().end(); iter++) {       // OUT[B] -= kill[B]
+                
+                // OUT[B] -= kill[B]
+                for (auto iter = bbKill->getUse().begin(); iter != bbKill->getUse().end(); iter++) {
                     Value *fir = iter->first;                                                              // 取出 kill[B] 中的一个元素
                     set<Instruction *> *snd = iter->second;
                     if (bbOUT->getUse().find(fir) == bbOUT->getUse().end())                                // 不在 OUT[B] 中就跳过
                         continue;
                     set<Instruction *> *bbSnd = bbOUT->getUse()[fir];                                      // 取出 OUT[B] 中变量的 Instruction 集合
                     for (auto iter = snd->begin(); iter != snd->end(); iter++) {                           // 遍历 kill[B]
-                        if (bbSnd->find(*iter) != bbSnd->end()) {                                          // 在 OUT[B] 中找到了 kill[B] 的 Instruction 就删掉
+                        // 在 OUT[B] 中找到了 kill[B] 的 Instruction 就删掉
+                        if (bbSnd->find(*iter) != bbSnd->end()) {
                             bbSnd->erase(*iter);
                         }
                     }
@@ -564,15 +614,23 @@ void SDDG::buildSDDG() {
         BasicBlock &bb = *bbIter;
         dfa::Use *bbUse = dfaDepUses[&bb];
         dfa::Use *bbIN = IN[&bb];
-        // bbUse->dump();
-        // bbIN->dump();
-        // errs() << '\n';
-        for (auto iter = bbUse->getUse().begin(); iter != bbUse->getUse().end(); iter++) {                 // 取出 Use 集合中的元素，即在基本块中使用了却没有定义的元素
+
+        #ifdef _LOCAL_DEBUG
+        bbUse->dump();
+        bbIN->dump();
+        errs() << '\n';
+        #endif
+
+        // 取出 Use 集合中的元素，即在基本块中使用了却没有定义的元素
+        for (auto iter = bbUse->getUse().begin(); iter != bbUse->getUse().end(); iter++) {
             Value *fir = iter->first;
             set<Instruction *> *snd = iter->second;
-            for (auto instIter : *snd) {                                                                   // 遍历使用了该变量的指令集合
-                if (bbIN->getUse().find(fir) != bbIN->getUse().end()) {                                    // IN[B] 是前驱输出状态的并集，因此在 IN[B] 中查找该变量的定义
-                    set<Instruction *> *instSet = bbIN->getUse()[fir];                                     // 找到之后则使用指令与定义指令之间存在依赖关系
+            // 遍历使用了该变量的指令集合
+            for (auto instIter : *snd) {
+                // IN[B] 是前驱输出状态的并集，因此在 IN[B] 中查找该变量的定义
+                // 找到之后则使用指令与定义指令之间存在依赖关系
+                if (bbIN->getUse().find(fir) != bbIN->getUse().end()) {
+                    set<Instruction *> *instSet = bbIN->getUse()[fir];
                     for (auto tmpIter : *instSet) {
                         mNodes[tmpIter]->addSuccessor(mNodes[instIter]);
                         mNodes[instIter]->addPredecessor(mNodes[tmpIter]);
@@ -665,6 +723,7 @@ void SDDG::buildSDDG() {
             }
             else if (Instruction::Br == inst->getOpcode()) {
                 // skip. do nothing for 'br'
+                continue;
             }
             else {
                 // for other instructions, 'operand's exist only at RHS??
@@ -798,16 +857,14 @@ void SDDG::buildSDDG() {
             }
         }
     }
-    // //////////////////////////
-    // 清理数据结构，主要是本函数内的各种map之类的数据结构中保存的新分配的内存空间（通过new分配）
-    // 需要通过delete释放掉。
-    sDefIN.clear(), sDefOUT.clear();
-    sUseIN.clear(), sUseOUT.clear();
-    sDfaShareDefs.clear(), sDfaShareUses.clear();
-    IN.clear(), OUT.clear();
-    dfaDepDefs.clear(), dfaDepUses.clear();
-    kill.clear();
-    // //////////////////////////
+
+    // clear maps.
+    mapCleaner(sDefIN), mapCleaner(sDefOUT);
+    mapCleaner(sUseIN), mapCleaner(sUseOUT);
+    mapCleaner(sDfaShareDefs), mapCleaner(sDfaShareUses);
+    mapCleaner(IN), mapCleaner(OUT);
+    mapCleaner(dfaDepDefs), mapCleaner(dfaDepUses);
+    mapCleaner(kill);
 }
 
 void SDDG::flattenDFS(SDDGNode *self, Instruction *inst, set<Instruction *> &visited) {
@@ -817,9 +874,12 @@ void SDDG::flattenDFS(SDDGNode *self, Instruction *inst, set<Instruction *> &vis
         Instruction *nowInst = iter->getInst();
         if (visited.find(nowInst) != visited.end()) continue;
         visited.insert(nowInst);
-        if (Instruction::Call != nowInst->getOpcode() && Instruction::Ret != nowInst->getOpcode())         // 不是 call 和 ret 就继续遍历
+        if (Instruction::Call != nowInst->getOpcode() && Instruction::Ret != nowInst->getOpcode()) {
+            // 不是 call 和 ret 就继续遍历
             flattenDFS(self, nowInst, visited);
-        else {                                                                                             // 是 call 或 ret 就连边返回
+        }
+        else {
+            // 是 call 或 ret 就连边返回
             mInterestingNodes[nowInst]->addSuccessor(self);
             self->addPredecessor(mInterestingNodes[nowInst]);
         }
@@ -827,7 +887,8 @@ void SDDG::flattenDFS(SDDGNode *self, Instruction *inst, set<Instruction *> &vis
 }
 
 void SDDG::flattenSDDG() {
-    for (auto iter : mNodes) {                                                                             // 取出所有的 call 和 ret 语句
+    // 取出所有的 call 和 ret 语句
+    for (auto iter : mNodes) {
         Instruction *inst = iter.first;
         if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode())
             mInterestingNodes[inst] = new SDDGNode(inst);
@@ -836,7 +897,8 @@ void SDDG::flattenSDDG() {
     for (auto iter : mInterestingNodes) {
         Instruction *inst = iter.first;
         visited.insert(inst);
-        flattenDFS(mInterestingNodes[inst], inst, visited);                                                // 从一个 call 或 ret 开始遍历整个图
+        // 从一个 call 或 ret 开始遍历整个图
+        flattenDFS(mInterestingNodes[inst], inst, visited);
         visited.clear();
     }
 }

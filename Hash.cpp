@@ -215,3 +215,9 @@ hash_t MD5encoding(unsigned char *s) {
     }
     return res;
 }
+
+std::string to_string(hash_t val) {
+    uint64_t higher = val >> 64, 
+             lower = val & ULLONG_MAX;
+    return std::to_string(higher) + "-" + std::to_string(lower);
+}

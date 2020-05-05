@@ -903,4 +903,49 @@ void SDDG::flattenSDDG() {
     }
 }
 
+void transition(string &normalizedStr,Value* inst)
+{
+    raw_string_ostream rso(normalizedStr); 
+    if (isa<ReturnInst>(inst)) 
+    { 
+        rso << "return "; 
+        Type *rType = inst->getType(); 
+        rType->print(rso); 
+    } 
+    else 
+    {
+        CallInst *cinst = cast<CallInst>(inst); 
+        Function *cfunc = cinst->getCalledFunction(); 
+        FunctionType *ftype = cinst->getFunctionType(); 
+        Type *rtype = ftype->getReturnType(); 
+        if (!rtype->isVoidTy()) 
+        { 
+            ftype->getReturnType()->print(rso); 
+            rso << " = "; 
+        } 
+        if (cfunc->hasName()) 
+        { 
+            rso << cfunc->getName(); 
+        } 
+        rso << "("; 
+        for (auto iter = ftype->param_begin(); iter != ftype->param_end(); iter++) 
+        { 
+            if (iter != ftype->param_begin()) 
+            { 
+                rso << ", "; 
+            } 
+            Type *ptype = *iter; 
+            ptype->print(rso); 
+        } 
+        if (ftype->isVarArg()) 
+        { 
+            if (ftype->getNumParams()) 
+                rso << ", "; 
+            rso << "..."; 
+        } 
+        rso << ")"; 
+    } 
+    rso.flush();
+	return;
+}
 } // namespace miner

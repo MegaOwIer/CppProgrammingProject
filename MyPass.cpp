@@ -26,6 +26,7 @@ public:
 
     virtual bool runOnModule(Module &M) {
         for (Function &f : M) {
+            if (f->empty()) continue;
             miner::SDDG func(&f);
             func.buildSDDG();
             func.flattenSDDG();

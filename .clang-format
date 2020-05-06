@@ -1,0 +1,38 @@
+Language: Cpp
+
+# basic format
+BasedOnStyle: LLVM
+ColumnLimit: 100
+IndentWidth: 4
+UseTab: Never
+TabWidth: 4
+
+BreakBeforeBraces: Attach
+PointerAlignment: Right
+IndentWrappedFunctionNames: true
+
+# templates
+AlwaysBreakTemplateDeclarations: true
+SpaceAfterTemplateKeyword: true
+SpacesInAngles: false
+
+# comments
+AlignTrailingComments: true
+FixNamespaceComments: true
+ReflowComments: true
+SpacesBeforeTrailingComments: 2
+
+# if-else statements
+AllowShortIfStatementsOnASingleLine: true
+
+# switch-case statements
+IndentCaseLabels: true
+
+# preprocessor directive
+IndentPPDirectives: AfterHash
+
+# classes
+AccessModifierOffset: -4
+
+
+

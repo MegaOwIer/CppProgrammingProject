@@ -11,7 +11,6 @@
 namespace miner {
 
 using namespace llvm;
-using std::map;
 using std::pair;
 using std::set;
 using std::string;
@@ -57,6 +56,6 @@ public:
     void dotify(bool showShareRelations = true);
 };
 
-} // namespace miner
+}  // namespace miner
 
 #endif

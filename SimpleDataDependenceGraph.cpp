@@ -1,5 +1,4 @@
 #include <fstream>
-#include <list>
 #include <llvm/IR/Argument.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/CFG.h>
@@ -11,20 +10,16 @@
 #include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
-#include <stack>
 #include <utility>
 
-#include "include/SimpleDataDependenceGraph.h"
-#include "include/Hash.h"
+#include "Hash.h"
+#include "SimpleDataDependenceGraph.h"
 
 namespace miner {
 
 using std::endl;
-using std::list;
 using std::ofstream;
 using std::pair;
-using std::stack;
-
 
 // TRUE for successful insertion; FALSE indicates an existing pair.
 bool SDDG::share(Instruction *fst, Instruction *snd) {
@@ -37,37 +32,25 @@ bool SDDG::share(Instruction *fst, Instruction *snd) {
     return false;
 }
 
-void SDDGNode::addSuccessor(SDDGNode *dst) {
-    mSuccessors.push_back(dst);
-}
+void SDDGNode::addSuccessor(SDDGNode *dst) { mSuccessors.push_back(dst); }
 
-void SDDGNode::addPredecessor(SDDGNode *dst) {
-    mPredecessors.push_back(dst);
-}
+void SDDGNode::addPredecessor(SDDGNode *dst) { mPredecessors.push_back(dst); }
 
-vector<SDDGNode *> &SDDGNode::getSuccessors() {
-    return mSuccessors;
-}
+vector<SDDGNode *> &SDDGNode::getSuccessors() { return mSuccessors; }
 
-vector<SDDGNode *> &SDDGNode::getPredecessors() {
-    return mPredecessors;
-}
+vector<SDDGNode *> &SDDGNode::getPredecessors() { return mPredecessors; }
 
-inline Instruction *SDDGNode::getInst() {
-    return mInst;
-}
+inline Instruction *SDDGNode::getInst() { return mInst; }
 
 SDDGNode::~SDDGNode() {}
 
 SDDG::~SDDG() {
     for (auto iter : mNodes) {
-        if (iter.second != nullptr)
-            delete iter.second;
+        if (iter.second != nullptr) delete iter.second;
         iter.second = nullptr;
     }
     for (auto iter : mInterestingNodes) {
-        if (iter.second != nullptr)
-            delete iter.second;
+        if (iter.second != nullptr) delete iter.second;
         iter.second = nullptr;
     }
     mNodes.clear();
@@ -77,57 +60,48 @@ SDDG::~SDDG() {
 
 namespace {
 
-void transition(string &normalizedStr, Value* inst)
-{
-    raw_string_ostream rso(normalizedStr); 
-    if (isa<ReturnInst>(inst)) 
-    { 
-        rso << "return "; 
-        Type *rType = inst->getType(); 
-        rType->print(rso); 
-    } 
-    else 
-    {
-        CallInst *cinst = cast<CallInst>(inst); 
-        Function *cfunc = cinst->getCalledFunction(); 
-        FunctionType *ftype = cinst->getFunctionType(); 
-        Type *rtype = ftype->getReturnType(); 
-        if (!rtype->isVoidTy()) 
-        { 
-            ftype->getReturnType()->print(rso); 
-            rso << " = "; 
-        } 
-        if (cfunc->hasName()) 
-        { 
-            rso << cfunc->getName(); 
-        } 
-        rso << "("; 
-        for (auto iter = ftype->param_begin(); iter != ftype->param_end(); iter++) 
-        { 
-            if (iter != ftype->param_begin()) 
-            { 
-                rso << ", "; 
-            } 
-            Type *ptype = *iter; 
-            ptype->print(rso); 
-        } 
-        if (ftype->isVarArg()) 
-        { 
-            if (ftype->getNumParams()) 
-                rso << ", "; 
-            rso << "..."; 
-        } 
-        rso << ")"; 
-    } 
+void transition(string &normalizedStr, Value *inst) {
+    raw_string_ostream rso(normalizedStr);
+    if (isa<ReturnInst>(inst)) {
+        rso << "return ";
+        Type *rType = inst->getType();
+        rType->print(rso);
+    } else {
+        CallInst *cinst = cast<CallInst>(inst);
+        Function *cfunc = cinst->getCalledFunction();
+        FunctionType *ftype = cinst->getFunctionType();
+        Type *rtype = ftype->getReturnType();
+        if (!rtype->isVoidTy()) {
+            ftype->getReturnType()->print(rso);
+            rso << " = ";
+        }
+        if (cfunc->hasName()) {
+            rso << cfunc->getName();
+        }
+        rso << "(";
+        for (auto iter = ftype->param_begin(); iter != ftype->param_end(); iter++) {
+            if (iter != ftype->param_begin()) {
+                rso << ", ";
+            }
+            Type *ptype = *iter;
+            ptype->print(rso);
+        }
+        if (ftype->isVarArg()) {
+            if (ftype->getNumParams()) rso << ", ";
+            rso << "...";
+        }
+        rso << ")";
+    }
     rso.flush();
     return;
 }
 
-void dotifyToFile(DenseMap<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *, Instruction *>> &shares, string &file, bool showShareRelations, bool showHashedValue) {
+void dotifyToFile(DenseMap<Instruction *, SDDGNode *> &nodes,
+                  set<pair<Instruction *, Instruction *>> &shares, string &file,
+                  bool showShareRelations, bool showHashedValue) {
     ofstream fos;
     fos.open(file);
-    fos << "digraph {\n"
-        << endl;
+    fos << "digraph {\n" << endl;
     for (auto iter = nodes.begin(); iter != nodes.end(); iter++) {
         Instruction *inst = iter->first;
         fos << "Inst" << (void *)inst << "[align = left, shape = box, label = \"";
@@ -139,8 +113,7 @@ void dotifyToFile(DenseMap<Instruction *, SDDGNode *> &nodes, set<pair<Instructi
             while ((pos = label.find('"', pos)) != string::npos) {
                 label.replace(pos, 1, "'");
             }
-        }
-        else {
+        } else {
             transition(label, inst);
             hash_t hashValue = MD5encoding(label.c_str());
             label = to_string(hashValue);
@@ -174,8 +147,7 @@ void dotifyToFile(DenseMap<Instruction *, SDDGNode *> &nodes, set<pair<Instructi
                         while ((pos = label.find('"', pos)) != string::npos) {
                             label.replace(pos, 1, "'");
                         }
-                    }
-                    else {
+                    } else {
                         transition(label, inst);
                         hash_t hashValue = MD5encoding(label.c_str());
                         label = to_string(hashValue);
@@ -188,14 +160,15 @@ void dotifyToFile(DenseMap<Instruction *, SDDGNode *> &nodes, set<pair<Instructi
         for (pair<Instruction *, Instruction *> pp : shares) {
             Instruction *inst1 = pp.first;
             Instruction *inst2 = pp.second;
-            fos << "Inst" << (void *)inst1 << " -> Inst" << (void *)inst2 << " [dir=none, color=red, style=dashed];" << endl;
+            fos << "Inst" << (void *)inst1 << " -> Inst" << (void *)inst2
+                << " [dir=none, color=red, style=dashed];" << endl;
         }
     }
     fos << "}" << endl;
     fos.close();
 }
 
-} // namespace
+}  // namespace
 
 void SDDG::dotify(bool showShareRelations) {
     std::string file = mFunc->getName().str() + ".dot";
@@ -215,15 +188,9 @@ class Definition {
 
 public:
     Definition() = default;
-    ~Definition() {
-        mDef.clear();
-    }
-    void define(Value *var, Instruction *inst) {
-        mDef[var] = inst;
-    }
-    DenseMap<Value *, Instruction *> &getDef() {
-        return mDef;
-    }
+    ~Definition() { mDef.clear(); }
+    void define(Value *var, Instruction *inst) { mDef[var] = inst; }
+    DenseMap<Value *, Instruction *> &getDef() { return mDef; }
     Instruction *getDef(Value *var) {
         auto iter = mDef.find(var);
         if (iter != mDef.end()) {
@@ -254,19 +221,15 @@ public:
         mUse.clear();
     }
 
-    DenseMap<Value *, set<Instruction *> *> &getUse() {
-        return mUse;
-    }
+    DenseMap<Value *, set<Instruction *> *> &getUse() { return mUse; }
     set<Instruction *> *getUse(Value *var) {
         auto iter = mUse.find(var);
         if (iter != mUse.end()) return iter->second;
         return nullptr;
     }
-    bool use(Value *var, Instruction *inst) {                                                              // true 代表改变了
-        if (mUse.find(var) == mUse.end())
-            mUse[var] = new set<Instruction *>;
-        if (mUse[var]->find(inst) != mUse[var]->end())
-            return false;
+    bool use(Value *var, Instruction *inst) {  // true 代表改变了
+        if (mUse.find(var) == mUse.end()) mUse[var] = new set<Instruction *>;
+        if (mUse[var]->find(inst) != mUse[var]->end()) return false;
         mUse[var]->insert(inst);
         return true;
     }
@@ -296,9 +259,7 @@ public:
         }
         mShareDef.clear();
     }
-    DenseMap<Value *, set<Value *> *> &getShareDefs() {
-        return mShareDef;
-    }
+    DenseMap<Value *, set<Value *> *> &getShareDefs() { return mShareDef; }
     set<Value *> *getShareDef(Value *var) {
         auto iter = mShareDef.find(var);
         if (iter != mShareDef.end()) {
@@ -312,9 +273,8 @@ public:
         set<Value *> *dSet = getShareDef(def);
         if (iter != mShareDef.end()) {
             vSet = iter->second;
-            vSet->clear(); // re-definition overrides all old ones.
-        }
-        else {
+            vSet->clear();  // re-definition overrides all old ones.
+        } else {
             vSet = new set<Value *>;
             mShareDef[var] = vSet;
         }
@@ -322,8 +282,7 @@ public:
             for (Value *ds : *dSet) {
                 vSet->insert(ds);
             }
-        }
-        else {
+        } else {
             vSet->insert(def);
         }
     }
@@ -359,9 +318,7 @@ public:
         }
         mShareUse.clear();
     }
-    DenseMap<Value *, set<Instruction *> *> &getShareUses() {
-        return mShareUse;
-    }
+    DenseMap<Value *, set<Instruction *> *> &getShareUses() { return mShareUse; }
     set<Instruction *> *getShareUse(Value *var) {
         auto iter = mShareUse.find(var);
         if (iter != mShareUse.end()) return iter->second;
@@ -399,8 +356,7 @@ TV *findOrCreate(DenseMap<TK *, TV *> &ian, TK *bb) {
     if (iter == ian.end()) {
         agr = new TV;
         ian[bb] = agr;
-    }
-    else {
+    } else {
         agr = iter->second;
     }
     return agr;
@@ -410,7 +366,8 @@ TV *findOrCreate(DenseMap<TK *, TV *> &ian, TK *bb) {
  * Returns TRUE for changes in 'to' and FALSE for no changes in 'to'.
  */
 template <typename TSE>
-bool mergeTwoMaps(DenseMap<Value *, set<TSE *> *> &to, const DenseMap<Value *, set<TSE *> *> &from) {
+bool mergeTwoMaps(DenseMap<Value *, set<TSE *> *> &to,
+                  const DenseMap<Value *, set<TSE *> *> &from) {
     bool changed = false;
     for (auto iter : from) {
         Value *var = iter.first;
@@ -421,8 +378,7 @@ bool mergeTwoMaps(DenseMap<Value *, set<TSE *> *> &to, const DenseMap<Value *, s
         }
         set<TSE *> *toSet = to[var];
         for (auto setIter : *fromSet) {
-            if (toSet->find(setIter) != toSet->end())
-                continue;
+            if (toSet->find(setIter) != toSet->end()) continue;
             toSet->insert(setIter);
             changed = true;
         }
@@ -430,14 +386,14 @@ bool mergeTwoMaps(DenseMap<Value *, set<TSE *> *> &to, const DenseMap<Value *, s
     return changed;
 }
 
-} // namespace dfa
+}  // namespace dfa
 
 /* Clean a map in order to prevent memory leak.
  */
 template <typename T>
 inline void mapCleaner(DenseMap<BasicBlock *, T *> &mp) {
-    for(auto cur : mp) {
-        if(cur.second != nullptr) {
+    for (auto cur : mp) {
+        if (cur.second != nullptr) {
             delete cur.second;
         }
     }
@@ -455,15 +411,14 @@ void SDDG::buildSDDG() {
         dfa::Use *bbUse = dfa::findOrCreate(dfaDepUses, &bb);
         for (auto instIter = bb.begin(); instIter != bb.end(); instIter++) {
             Instruction *inst = dyn_cast<Instruction>(instIter);
-            
-            #ifdef _LOCAL_DEBUG
+
+#ifdef _LOCAL_DEBUG
             errs() << *inst << '\n';
-            #endif
+#endif
 
             if (Instruction::Alloca == inst->getOpcode()) {
                 continue;
-            }
-            else if (Instruction::Store == inst->getOpcode()) {
+            } else if (Instruction::Store == inst->getOpcode()) {
                 // store fstOp, sndOp ==> sndOp = fstOp
                 mNodes[inst] = new SDDGNode(inst);
                 Value *fstOp = inst->getOperand(0);
@@ -476,12 +431,10 @@ void SDDG::buildSDDG() {
                 if (bbDef->getDef().find(fstOp) != bbDef->getDef().end()) {
                     mNodes[bbDef->getDef()[fstOp]]->addSuccessor(mNodes[inst]);
                     mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[fstOp]]);
-                }
-                else {
+                } else {
                     bbUse->use(fstOp, inst);
                 }
-            }
-            else if (Instruction::Load == inst->getOpcode()) {
+            } else if (Instruction::Load == inst->getOpcode()) {
                 // lValue = load op ==> lValue = op
                 mNodes[inst] = new SDDGNode(inst);
                 Value *lValue = dyn_cast<Value>(inst);
@@ -491,22 +444,19 @@ void SDDG::buildSDDG() {
                 if (bbDef->getDef().find(op) != bbDef->getDef().end()) {
                     mNodes[bbDef->getDef()[op]]->addSuccessor(mNodes[inst]);
                     mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[op]]);
-                }
-                else {
+                } else {
                     bbUse->use(op, inst);
                 }
-            }
-            else if (Instruction::Call == inst->getOpcode()) {
+            } else if (Instruction::Call == inst->getOpcode()) {
                 // 函数调用
                 Function *func = (dyn_cast<CallInst>(inst))->getCalledFunction();
                 // 检查 intrinsic 函数，只留下 memcpy
                 if (func->isIntrinsic()) {
-                    if (func->getIntrinsicID() != Intrinsic::memcpy)
-                        continue;
+                    if (func->getIntrinsicID() != Intrinsic::memcpy) continue;
                 }
 
                 mNodes[inst] = new SDDGNode(inst);
-                
+
                 // 不是 void 类型的函数则将返回值记为一个 definition
                 if (!inst->getType()->isVoidTy()) {
                     Value *lValue = dyn_cast<Value>(inst);
@@ -522,13 +472,12 @@ void SDDG::buildSDDG() {
                     if (bbDef->getDef().find(var) != bbDef->getDef().end()) {
                         mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                         mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
-                    }
-                    else {
+                    } else {
                         bbUse->use(var, inst);
                     }
                 }
-            }
-            else if (Instruction::Ret == inst->getOpcode() || Instruction::Br == inst->getOpcode()) {
+            } else if (Instruction::Ret == inst->getOpcode() ||
+                       Instruction::Br == inst->getOpcode()) {
                 // 返回和分支跳转
                 unsigned int nOprands = inst->getNumOperands();
                 bool interesting = false;
@@ -544,14 +493,12 @@ void SDDG::buildSDDG() {
                         if (bbDef->getDef().find(var) != bbDef->getDef().end()) {
                             mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                             mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
-                        }
-                        else {
+                        } else {
                             bbUse->use(var, inst);
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 // 其它指令参考下方 share 代码实现
                 bool interesting = false;
                 // 检查这个指令是否被使用过 -> 指令是否是一个定义？
@@ -572,8 +519,7 @@ void SDDG::buildSDDG() {
                         if (bbDef->getDef().find(var) != bbDef->getDef().end()) {
                             mNodes[bbDef->getDef()[var]]->addSuccessor(mNodes[inst]);
                             mNodes[inst]->addPredecessor(mNodes[bbDef->getDef()[var]]);
-                        }
-                        else {
+                        } else {
                             bbUse->use(var, inst);
                         }
                     }
@@ -586,11 +532,11 @@ void SDDG::buildSDDG() {
     DenseMap<BasicBlock *, dfa::Use *> kill;
     for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {
         BasicBlock &bb = *bbIter;
-        
+
         // 一个基本块的 gen 是它生成的变量语句，也就是被它定义过了
         dfa::Definition *gen = dfaDepDefs[&bb];
         dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
-        
+
         // 找到一个该基本块 gen 的变量
         for (auto genIter = gen->getDef().begin(); genIter != gen->getDef().end(); genIter++) {
             Value *var = genIter->first;
@@ -630,9 +576,9 @@ void SDDG::buildSDDG() {
                     changed = true;
                 }
             }
-            #ifdef _LOCAL_DEBUG
+#ifdef _LOCAL_DEBUG
             errs() << changed << '\n';
-            #endif
+#endif
 
             // 用 IN[B] 更新 kill[B]
             dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
@@ -640,7 +586,8 @@ void SDDG::buildSDDG() {
             for (auto inIter : bbIN->getUse()) {
                 Value *var = inIter.first;
                 set<Instruction *> *inSet = inIter.second;
-                if (gen->getDef().find(var) == gen->getDef().end())                                        // 基本块内没有 var 变量的定义就不会被 kill
+                if (gen->getDef().find(var) ==
+                    gen->getDef().end())  // 基本块内没有 var 变量的定义就不会被 kill
                     continue;
                 for (auto inst : *inSet) {
                     changed |= bbKill->use(var, inst);
@@ -653,18 +600,19 @@ void SDDG::buildSDDG() {
                     set<Instruction *> *uses = iter->second;
                     if (uses) delete uses;
                 }
-                bbOUT->getUse().clear();                                                                   // 清空 OUT[B]
-                dfa::mergeTwoMaps(bbOUT->getUse(), bbIN->getUse());                                        // OUT[B] = IN[B]
+                bbOUT->getUse().clear();                             // 清空 OUT[B]
+                dfa::mergeTwoMaps(bbOUT->getUse(), bbIN->getUse());  // OUT[B] = IN[B]
                 dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
-                
+
                 // OUT[B] -= kill[B]
                 for (auto iter = bbKill->getUse().begin(); iter != bbKill->getUse().end(); iter++) {
-                    Value *fir = iter->first;                                                              // 取出 kill[B] 中的一个元素
+                    Value *fir = iter->first;  // 取出 kill[B] 中的一个元素
                     set<Instruction *> *snd = iter->second;
-                    if (bbOUT->getUse().find(fir) == bbOUT->getUse().end())                                // 不在 OUT[B] 中就跳过
+                    if (bbOUT->getUse().find(fir) == bbOUT->getUse().end())  // 不在 OUT[B] 中就跳过
                         continue;
-                    set<Instruction *> *bbSnd = bbOUT->getUse()[fir];                                      // 取出 OUT[B] 中变量的 Instruction 集合
-                    for (auto iter = snd->begin(); iter != snd->end(); iter++) {                           // 遍历 kill[B]
+                    set<Instruction *> *bbSnd =
+                        bbOUT->getUse()[fir];  // 取出 OUT[B] 中变量的 Instruction 集合
+                    for (auto iter = snd->begin(); iter != snd->end(); iter++) {  // 遍历 kill[B]
                         // 在 OUT[B] 中找到了 kill[B] 的 Instruction 就删掉
                         if (bbSnd->find(*iter) != bbSnd->end()) {
                             bbSnd->erase(*iter);
@@ -675,7 +623,7 @@ void SDDG::buildSDDG() {
                         bbOUT->getUse().erase(fir);
                     }
                 }
-                dfa::Definition *gen = dfa::findOrCreate(dfaDepDefs, &bb);                                 // OUT[B] \/= gen[B];
+                dfa::Definition *gen = dfa::findOrCreate(dfaDepDefs, &bb);  // OUT[B] \/= gen[B];
                 for (auto iter = gen->getDef().begin(); iter != gen->getDef().end(); iter++) {
                     bbOUT->use(iter->first, iter->second);
                 }
@@ -684,16 +632,17 @@ void SDDG::buildSDDG() {
     }
 
     // 3. 根据每个基本块的IN和use信息，更新数据依赖图
-    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end(); bbIter++) {                                 // 处理基本块之间的依赖关系
+    for (auto bbIter = mFunc->begin(); bbIter != mFunc->end();
+         bbIter++) {  // 处理基本块之间的依赖关系
         BasicBlock &bb = *bbIter;
         dfa::Use *bbUse = dfaDepUses[&bb];
         dfa::Use *bbIN = IN[&bb];
 
-        #ifdef _LOCAL_DEBUG
+#ifdef _LOCAL_DEBUG
         bbUse->dump();
         bbIN->dump();
         errs() << '\n';
-        #endif
+#endif
 
         // 取出 Use 集合中的元素，即在基本块中使用了却没有定义的元素
         for (auto iter = bbUse->getUse().begin(); iter != bbUse->getUse().end(); iter++) {
@@ -713,10 +662,7 @@ void SDDG::buildSDDG() {
             }
         }
     }
-    // // //////////////////////////
-    // // 以下是创建数据共享关系的代码，其中有一处需要同学们自行处理，所依赖的mergeTwoMaps函数需要
-    // // 同学们去实现。
-    // // ///////////////////////////////////////////////////////////////////////////////////////
+
     // Below we compute the DataShare relations using the following forwarding DFA algorithm:
     // IN(ShareDef : B) = \/[P of B's predecessor](OUT(ShareDef : P))
     // OUT(ShareDef : B) = (IN(ShareDef : B) - Def(B)) \/ ShareDef(B)
@@ -734,33 +680,32 @@ void SDDG::buildSDDG() {
         dfa::ShareUse *bbSUse = dfa::findOrCreate(sDfaShareUses, &bb);
         for (auto instIter = bb.begin(); instIter != bb.end(); instIter++) {
             Instruction *inst = dyn_cast<Instruction>(instIter);
-            // errs() << "Analyze Inst: " << *inst << "  **#OP: " << inst->getNumOperands() << "\n";
+#ifdef _LOCAL_DEBUG
+            errs() << "Analyze Inst: " << *inst << "  **#OP: " << inst->getNumOperands() << "\n";
+#endif
             if (Instruction::Alloca == inst->getOpcode()) {
                 continue;
-            }
-            else if (Instruction::Store == inst->getOpcode()) {
+            } else if (Instruction::Store == inst->getOpcode()) {
                 Value *fstOp = inst->getOperand(0);
                 Value *sndOp = inst->getOperand(1);
-                if (isa<Argument>(fstOp) || isa<Instruction>(fstOp)) {  // e.g., fstOp is "x = call f()"
+                if (isa<Argument>(fstOp) || isa<Instruction>(fstOp)) {
+                    // e.g., fstOp is "x = call f()"
                     bbSDef->shareDefine(sndOp, fstOp);
-                }
-                else { // should we consider usages of the same constant as a DataShare?
+                } else {
+                    // should we consider usages of the same constant as a DataShare?
                     bbSDef->shareDefine(sndOp, inst);
                 }
                 // no need to build ShareUse as we only care uses in interesting nodes (call, ret)
-            }
-            else if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode()) {
+            } else if (Instruction::Call == inst->getOpcode() ||
+                       Instruction::Ret == inst->getOpcode()) {
                 unsigned int nOprands = inst->getNumOperands();
-                ////////////////////////////
-                // // 此处未考虑Intrinsic函数的处理，请自行添加。
+                // 处理 Intrinsic 函数
                 if (Instruction::Call == inst->getOpcode()) {
                     Function *func = (dyn_cast<CallInst>(inst))->getCalledFunction();
                     if (func->isIntrinsic()) {
-                        if (func->getIntrinsicID() != Intrinsic::memcpy)
-                            continue;
+                        if (func->getIntrinsicID() != Intrinsic::memcpy) continue;
                     }
                 }
-                ////////////////////////////
                 if (Instruction::Call == inst->getOpcode() && !inst->getType()->isVoidTy()) {
                     bbSDef->shareDefine(inst, inst);
                     --nOprands;
@@ -774,7 +719,8 @@ void SDDG::buildSDDG() {
                             share(inst, opUse);
                         }
                     }
-                    // as we do not obtain the ShareDef's uses in getShareUse(), we need a further step here.
+                    // as we do not obtain the ShareDef's uses in getShareUse(), we need a further
+                    // step here.
                     set<Value *> *opSDefs = bbSDef->getShareDef(op);
                     if (opSDefs) {
                         for (Value *opDef : *opSDefs) {
@@ -794,12 +740,10 @@ void SDDG::buildSDDG() {
                         bbSUse->shareUse(op, inst, bbSDef);
                     }
                 }
-            }
-            else if (Instruction::Br == inst->getOpcode()) {
+            } else if (Instruction::Br == inst->getOpcode()) {
                 // skip. do nothing for 'br'
                 continue;
-            }
-            else {
+            } else {
                 // for other instructions, 'operand's exist only at RHS??
                 // ShareUse does nothing, but ShareDef may be updated
                 if (inst->use_empty()) {  // not a definition
@@ -813,9 +757,11 @@ void SDDG::buildSDDG() {
                 }
             }
         }
-        // errs() << "\n#### BB" << &bb << "\n";
-        // bbSDef->dump();
-        // bbSUse->dump();
+#ifdef _LOCAL_DEBUG
+        errs() << "\n#### BB" << &bb << "\n";
+        bbSDef->dump();
+        bbSUse->dump();
+#endif
     }
     // 2. iteratively compute IN/OUT for ShareDef and ShareUse
     changed = true;
@@ -844,15 +790,19 @@ void SDDG::buildSDDG() {
                 dfa::mergeTwoMaps(tmpSUseIN.getShareUses(), predSUse->getShareUses());
             }
             // 2.1.3 merge OUTs (in tmpIN) to IN(ShareDef)
-            changed = dfa::mergeTwoMaps(bbSDefIN->getShareDefs(), tmpSDefIN.getShareDefs()) | changed;
+            changed =
+                dfa::mergeTwoMaps(bbSDefIN->getShareDefs(), tmpSDefIN.getShareDefs()) | changed;
             // 2.1.4 merge OUTs (in tmpIN) to IN(ShareUse)
-            changed = dfa::mergeTwoMaps(bbSUseIN->getShareUses(), tmpSUseIN.getShareUses()) | changed;
-            // Below for debug output use.
-            // errs() << " After merging OUT for BB" << &bb << "\n";
-            // errs() << " ~~~~ IN : ShareDef ~~~~\n";
-            // bbSDefIN->dump();
-            // errs() << "\n ~~~~ IN : ShareUse ~~~~\n";
-            // bbSUseIN->dump();
+            changed =
+                dfa::mergeTwoMaps(bbSUseIN->getShareUses(), tmpSUseIN.getShareUses()) | changed;
+
+#ifdef _LOCAL_DEBUG
+            errs() << " After merging OUT for BB" << &bb << "\n";
+            errs() << " ~~~~ IN : ShareDef ~~~~\n";
+            bbSDefIN->dump();
+            errs() << "\n ~~~~ IN : ShareUse ~~~~\n";
+            bbSUseIN->dump();
+#endif
             // 2.2 compute OUT
             // 2.2.1 ShareDef: tmpOUT = IN(ShareDef : B) - Def(B) [rm all Defs in IN if re-defined]
             dfa::Definition *bbDef = dfaDepDefs[&bb];
@@ -877,7 +827,8 @@ void SDDG::buildSDDG() {
             dfa::ShareDefinition *bbShareDef = sDfaShareDefs[&bb];
             dfa::mergeTwoMaps(tmpSDefOUT.getShareDefs(), bbShareDef->getShareDefs());
             // 2.2.3 ShareDef: merge tmpOUT to OUT(ShareDef)
-            changed = dfa::mergeTwoMaps(bbSDefOUT->getShareDefs(), tmpSDefOUT.getShareDefs()) | changed;
+            changed =
+                dfa::mergeTwoMaps(bbSDefOUT->getShareDefs(), tmpSDefOUT.getShareDefs()) | changed;
             // 2.2.4 ShareUse: tmpOUT = IN(ShareUse : B) - Def(B)
             DenseMap<Value *, set<Instruction *> *> &bbSUseIns = bbSUseIN->getShareUses();
             DenseMap<Value *, set<Instruction *> *> &bbSUseTmpOUT = tmpSUseOUT.getShareUses();
@@ -895,7 +846,8 @@ void SDDG::buildSDDG() {
                 }
             }
             // 2.2.5 ShareUse: tmpOUT = tmpOUT \/ ShareUse(B)
-            // // if we allow a:USE and b:USE (a depends on b) in ShareUse, we can simply merge them.
+            // // if we allow a:USE and b:USE (a depends on b) in ShareUse, we can simply merge
+            // them.
             dfa::mergeTwoMaps(bbSUseTmpOUT, sDfaShareUses[&bb]->getShareUses());
             // 2.2.6 SahreUse: merge tmpOUT to OUT(ShareUse)
             changed = dfa::mergeTwoMaps(bbSUseOUT->getShareUses(), bbSUseTmpOUT) | changed;
@@ -951,8 +903,7 @@ void SDDG::flattenDFS(SDDGNode *self, Instruction *inst, set<Instruction *> &vis
         if (Instruction::Call != nowInst->getOpcode() && Instruction::Ret != nowInst->getOpcode()) {
             // 不是 call 和 ret 就继续遍历
             flattenDFS(self, nowInst, visited);
-        }
-        else {
+        } else {
             // 是 call 或 ret 就连边返回
             mInterestingNodes[nowInst]->addSuccessor(self);
             self->addPredecessor(mInterestingNodes[nowInst]);
@@ -977,4 +928,4 @@ void SDDG::flattenSDDG() {
     }
 }
 
-} // namespace miner
+}  // namespace miner

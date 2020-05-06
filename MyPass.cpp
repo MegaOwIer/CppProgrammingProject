@@ -14,7 +14,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-#include "include/SimpleDataDependenceGraph.h"
+#include "SimpleDataDependenceGraph.h"
 
 using namespace llvm;
 
@@ -35,17 +35,18 @@ public:
         return false;
     }
 };
-} // namespace
+}  // namespace
 
 char MyPass::ID = 0;
-
 
 static void registerMyPass(const PassManagerBuilder &PMB, legacy::PassManagerBase &PM) {
     PM.add(new MyPass());
 }
 
 // works with "-O0" or no optimization options
-static RegisterStandardPasses RegisterMyPass_OPT0(PassManagerBuilder::EP_EnabledOnOptLevel0, registerMyPass);
+static RegisterStandardPasses RegisterMyPass_OPT0(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                                  registerMyPass);
 
 // works with "-O1", "-O2", ...
-static RegisterStandardPasses RegisterMyPass_OPT(PassManagerBuilder::EP_ModuleOptimizerEarly, registerMyPass);
+static RegisterStandardPasses RegisterMyPass_OPT(PassManagerBuilder::EP_ModuleOptimizerEarly,
+                                                 registerMyPass);

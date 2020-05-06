@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include "include/Hash.h"
+#include "Hash.h"
 
 namespace {
 
@@ -29,35 +29,34 @@ public:
 #define H(x, y, z) (x ^ y ^ z)
 #define I(x, y, z) (y ^ (x | ~z))
 #define ROTATE_LEFT(x, n) ((x << n) | (x >> (32 - n)))
-#define FF(a, b, c, d, x, s, ac)  \
-    {                             \
-        a += F(b, c, d) + x + ac; \
-        a = ROTATE_LEFT(a, s);    \
-        a += b;                   \
+#define FF(a, b, c, d, x, s, ac)                                                                   \
+    {                                                                                              \
+        a += F(b, c, d) + x + ac;                                                                  \
+        a = ROTATE_LEFT(a, s);                                                                     \
+        a += b;                                                                                    \
     }
-#define GG(a, b, c, d, x, s, ac)  \
-    {                             \
-        a += G(b, c, d) + x + ac; \
-        a = ROTATE_LEFT(a, s);    \
-        a += b;                   \
+#define GG(a, b, c, d, x, s, ac)                                                                   \
+    {                                                                                              \
+        a += G(b, c, d) + x + ac;                                                                  \
+        a = ROTATE_LEFT(a, s);                                                                     \
+        a += b;                                                                                    \
     }
-#define HH(a, b, c, d, x, s, ac)  \
-    {                             \
-        a += H(b, c, d) + x + ac; \
-        a = ROTATE_LEFT(a, s);    \
-        a += b;                   \
+#define HH(a, b, c, d, x, s, ac)                                                                   \
+    {                                                                                              \
+        a += H(b, c, d) + x + ac;                                                                  \
+        a = ROTATE_LEFT(a, s);                                                                     \
+        a += b;                                                                                    \
     }
-#define II(a, b, c, d, x, s, ac)  \
-    {                             \
-        a += I(b, c, d) + x + ac; \
-        a = ROTATE_LEFT(a, s);    \
-        a += b;                   \
+#define II(a, b, c, d, x, s, ac)                                                                   \
+    {                                                                                              \
+        a += I(b, c, d) + x + ac;                                                                  \
+        a = ROTATE_LEFT(a, s);                                                                     \
+        a += b;                                                                                    \
     }
 
-unsigned char PADDING[] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+unsigned char PADDING[] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void MD5_CTX::Update(unsigned char *input, unsigned int inputlen) {
     unsigned int i = 0, index = 0, partlen = 0;
@@ -74,8 +73,7 @@ void MD5_CTX::Update(unsigned char *input, unsigned int inputlen) {
             Transform(state, &input[i]);
         }
         index = 0;
-    }
-    else {
+    } else {
         i = 0;
     }
     memcpy(&buffer[index], &input[i], inputlen - i);
@@ -107,10 +105,7 @@ void MD5_CTX::Encode(unsigned char *output, unsigned int *input, unsigned int le
 void MD5_CTX::Decode(unsigned int *output, unsigned char *input, unsigned int len) {
     unsigned int i = 0, j = 0;
     while (j < len) {
-        output[i] = (input[j]) |
-                    (input[j + 1] << 8) |
-                    (input[j + 2] << 16) |
-                    (input[j + 3] << 24);
+        output[i] = (input[j]) | (input[j + 1] << 8) | (input[j + 2] << 16) | (input[j + 3] << 24);
         i++;
         j += 4;
     }
@@ -200,7 +195,7 @@ void MD5_CTX::Transform(unsigned int state[4], unsigned char block[64]) {
     state[3] += d;
 }
 
-} // namespace
+}  // namespace
 
 hash_t MD5encoding(const char *s) {
     static unsigned char e[16];
@@ -218,7 +213,6 @@ hash_t MD5encoding(const char *s) {
 }
 
 std::string to_string(hash_t val) {
-    uint64_t higher = val >> 64, 
-             lower = val & ULLONG_MAX;
+    uint64_t higher = val >> 64, lower = val & ULLONG_MAX;
     return std::to_string(higher) + "-" + std::to_string(lower);
 }

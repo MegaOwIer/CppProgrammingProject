@@ -14,7 +14,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-#include "SimpleDataDependenceGraph.h"
+#include "include/SimpleDataDependenceGraph.h"
 
 using namespace llvm;
 
@@ -26,7 +26,7 @@ public:
 
     virtual bool runOnModule(Module &M) {
         for (Function &f : M) {
-            if (f->empty()) continue;
+            if (f.empty()) continue;
             miner::SDDG func(&f);
             func.buildSDDG();
             func.flattenSDDG();

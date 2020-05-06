@@ -1,7 +1,6 @@
 #ifndef SIMPLESIMPLEDATADEPENDENCE_H_
 #define SIMPLESIMPLEDATADEPENDENCE_H_
 
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -37,8 +36,8 @@ public:
 class SDDG {
 private:
     Function *mFunc;
-    map<Instruction *, SDDGNode *> mNodes;
-    map<Instruction *, SDDGNode *> mInterestingNodes;
+    DenseMap<Instruction *, SDDGNode *> mNodes;
+    DenseMap<Instruction *, SDDGNode *> mInterestingNodes;
     set<pair<Instruction *, Instruction *>> mShares;
     bool share(Instruction *fst, Instruction *snd);
 
@@ -48,7 +47,7 @@ public:
     // 创建数据依赖图及数据共享关系
     void buildSDDG();
     // 将数据依赖图中的无关元素去除，仅保留所关注的元素
-    void flattenDFS(SDDGNode *, Instruction *, std::set<Instruction *> &);
+    void flattenDFS(SDDGNode *, Instruction *, set<Instruction *> &);
     void flattenSDDG();
     /* 提供将数据依赖图转化为dot文件的方法，对于将字符串映射为整数之后，如何转化，请自行设计实现。
      * 参数指示是否将“数据共享关系”输出到dot文件中。

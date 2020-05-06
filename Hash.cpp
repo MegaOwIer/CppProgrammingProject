@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include "Hash.h"
+#include "include/Hash.h"
 
 namespace {
 

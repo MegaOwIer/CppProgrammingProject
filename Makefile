@@ -5,8 +5,8 @@ FILES=SimpleDataDependenceGraph.cpp MyPass.cpp Hash.cpp
 
 all: MyPass.so
 
-MyPass.so: *.cpp *.h
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(FILES) -o MyPass.so
+MyPass.so: *.cpp include/*.h
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(FILES) -O2 -o MyPass.so
 
 clean:
 	rm MyPass.so

@@ -202,11 +202,12 @@ void MD5_CTX::Transform(unsigned int state[4], unsigned char block[64]) {
 
 } // namespace
 
-hash_t MD5encoding(unsigned char *s) {
+hash_t MD5encoding(const char *s) {
     static unsigned char e[16];
 
+    unsigned char *us = (unsigned char *)s;
     MD5_CTX md5;
-    md5.Update(s, strlen((char *)s));
+    md5.Update(us, strlen((char *)s));
     md5.Final(e);
 
     hash_t res = 0;

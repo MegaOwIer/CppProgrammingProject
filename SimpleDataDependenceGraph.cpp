@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "SimpleDataDependenceGraph.h"
+#include "Hash.h"
 
 namespace miner {
 
@@ -76,7 +77,53 @@ SDDG::~SDDG() {
 
 namespace {
 
-void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *, Instruction *>> &shares, string &file, bool showShareRelations) {
+void transition(string &normalizedStr, Value* inst)
+{
+    raw_string_ostream rso(normalizedStr); 
+    if (isa<ReturnInst>(inst)) 
+    { 
+        rso << "return "; 
+        Type *rType = inst->getType(); 
+        rType->print(rso); 
+    } 
+    else 
+    {
+        CallInst *cinst = cast<CallInst>(inst); 
+        Function *cfunc = cinst->getCalledFunction(); 
+        FunctionType *ftype = cinst->getFunctionType(); 
+        Type *rtype = ftype->getReturnType(); 
+        if (!rtype->isVoidTy()) 
+        { 
+            ftype->getReturnType()->print(rso); 
+            rso << " = "; 
+        } 
+        if (cfunc->hasName()) 
+        { 
+            rso << cfunc->getName(); 
+        } 
+        rso << "("; 
+        for (auto iter = ftype->param_begin(); iter != ftype->param_end(); iter++) 
+        { 
+            if (iter != ftype->param_begin()) 
+            { 
+                rso << ", "; 
+            } 
+            Type *ptype = *iter; 
+            ptype->print(rso); 
+        } 
+        if (ftype->isVarArg()) 
+        { 
+            if (ftype->getNumParams()) 
+                rso << ", "; 
+            rso << "..."; 
+        } 
+        rso << ")"; 
+    } 
+    rso.flush();
+    return;
+}
+
+void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *, Instruction *>> &shares, string &file, bool showShareRelations, bool showHashedValue) {
     ofstream fos;
     fos.open(file);
     fos << "digraph {\n"
@@ -86,10 +133,17 @@ void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *,
         fos << "Inst" << (void *)inst << "[align = left, shape = box, label = \"";
         string label;
         raw_string_ostream rso(label);
-        inst->print(rso);
-        string::size_type pos(0);
-        while ((pos = label.find('"', pos)) != string::npos) {
-            label.replace(pos, 1, "'");
+        if (!showHashedValue) {
+            inst->print(rso);
+            string::size_type pos(0);
+            while ((pos = label.find('"', pos)) != string::npos) {
+                label.replace(pos, 1, "'");
+            }
+        }
+        else {
+            transition(label, inst);
+            hash_t hashValue = MD5encoding(label.c_str());
+            label = to_string(hashValue);
         }
         fos << label << "\"];" << endl;
     }
@@ -114,10 +168,17 @@ void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *,
                     fos << "Inst" << (void *)inst << "[align = left, shape = box, label = \"";
                     string label;
                     raw_string_ostream rso(label);
-                    inst->print(rso);
-                    string::size_type pos(0);
-                    while ((pos = label.find('"', pos)) != string::npos) {
-                        label.replace(pos, 1, "'");
+                    if (!showHashedValue) {
+                        inst->print(rso);
+                        string::size_type pos(0);
+                        while ((pos = label.find('"', pos)) != string::npos) {
+                            label.replace(pos, 1, "'");
+                        }
+                    }
+                    else {
+                        transition(label, inst);
+                        hash_t hashValue = MD5encoding(label.c_str());
+                        label = to_string(hashValue);
                     }
                     fos << label << "\"];" << endl;
                 }
@@ -138,10 +199,12 @@ void dotifyToFile(map<Instruction *, SDDGNode *> &nodes, set<pair<Instruction *,
 
 void SDDG::dotify(bool showShareRelations) {
     std::string file = mFunc->getName().str() + ".dot";
-    dotifyToFile(mNodes, mShares, file, showShareRelations);
+    dotifyToFile(mNodes, mShares, file, showShareRelations, false);
     if (!mInterestingNodes.empty()) {
         file = mFunc->getName().str() + ".flat.dot";
-        dotifyToFile(mInterestingNodes, mShares, file, showShareRelations);
+        dotifyToFile(mInterestingNodes, mShares, file, showShareRelations, false);
+        file = mFunc->getName().str() + ".transaction.dot";
+        dotifyToFile(mInterestingNodes, mShares, file, showShareRelations, true);
     }
 }
 
@@ -199,15 +262,13 @@ public:
         if (iter != mUse.end()) return iter->second;
         return nullptr;
     }
-    void use(Value *var, Instruction *inst) {
-        if (mUse.find(var) != mUse.end()) {
-            mUse[var]->insert(inst);
-        }
-        else {
+    bool use(Value *var, Instruction *inst) {                                                              // true 代表改变了
+        if (mUse.find(var) == mUse.end())
             mUse[var] = new set<Instruction *>;
-            mUse[var]->insert(inst);
-        }
-        return;
+        if (mUse[var]->find(inst) != mUse[var]->end())
+            return false;
+        mUse[var]->insert(inst);
+        return true;
     }
     void dump() {
         errs() << "Use:\n";
@@ -572,7 +633,20 @@ void SDDG::buildSDDG() {
             #ifdef _LOCAL_DEBUG
             errs() << changed << '\n';
             #endif
-            // OUT[B] = gen[B] \/ (IN[B] - kill[B]) ==> out[B] 改变意味着 IN[B] 改变
+
+            // 用 IN[B] 更新 kill[B]
+            dfa::Use *bbKill = dfa::findOrCreate(kill, &bb);
+            dfa::Definition *gen = dfaDepDefs[&bb];
+            for (auto inIter : bbIN->getUse()) {
+                Value *var = inIter.first;
+                set<Instruction *> *inSet = inIter.second;
+                if (gen->getDef().find(var) == gen->getDef().end())                                        // 基本块内没有 var 变量的定义就不会被 kill
+                    continue;
+                for (auto inst : *inSet) {
+                    changed |= bbKill->use(var, inst);
+                }
+            }
+            // OUT[B] = gen[B] \/ (IN[B] - kill[B]) ==> out[B] 改变意味着 IN[B] / kill[B] 改变
             if (changed) {
                 dfa::Use *bbOUT = dfa::findOrCreate(OUT, &bb);
                 for (auto iter = bbOUT->getUse().begin(); iter != bbOUT->getUse().end(); iter++) {
@@ -903,49 +977,4 @@ void SDDG::flattenSDDG() {
     }
 }
 
-void transition(string &normalizedStr,Value* inst)
-{
-    raw_string_ostream rso(normalizedStr); 
-    if (isa<ReturnInst>(inst)) 
-    { 
-        rso << "return "; 
-        Type *rType = inst->getType(); 
-        rType->print(rso); 
-    } 
-    else 
-    {
-        CallInst *cinst = cast<CallInst>(inst); 
-        Function *cfunc = cinst->getCalledFunction(); 
-        FunctionType *ftype = cinst->getFunctionType(); 
-        Type *rtype = ftype->getReturnType(); 
-        if (!rtype->isVoidTy()) 
-        { 
-            ftype->getReturnType()->print(rso); 
-            rso << " = "; 
-        } 
-        if (cfunc->hasName()) 
-        { 
-            rso << cfunc->getName(); 
-        } 
-        rso << "("; 
-        for (auto iter = ftype->param_begin(); iter != ftype->param_end(); iter++) 
-        { 
-            if (iter != ftype->param_begin()) 
-            { 
-                rso << ", "; 
-            } 
-            Type *ptype = *iter; 
-            ptype->print(rso); 
-        } 
-        if (ftype->isVarArg()) 
-        { 
-            if (ftype->getNumParams()) 
-                rso << ", "; 
-            rso << "..."; 
-        } 
-        rso << ")"; 
-    } 
-    rso.flush();
-	return;
-}
 } // namespace miner

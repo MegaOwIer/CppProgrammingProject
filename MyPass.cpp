@@ -15,7 +15,6 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 #include "SimpleDataDependenceGraph.h"
-#include "Hash.h"
 
 using namespace llvm;
 

@@ -50,8 +50,6 @@ public:
     // 将数据依赖图中的无关元素去除，仅保留所关注的元素
     void flattenDFS(SDDGNode *, Instruction *, std::set<Instruction *> &);
     void flattenSDDG();
-    // 基于LLVM IR的信息，不做任何概念上的改变，创建数据依赖图
-    void buildLegacySDDG();
     /* 提供将数据依赖图转化为dot文件的方法，对于将字符串映射为整数之后，如何转化，请自行设计实现。
      * 参数指示是否将“数据共享关系”输出到dot文件中。
      * 获得dot文件后（加上名为Test_func.dot，执行命令：dot -Tpng -o a.png Test_func.dot可生成相应

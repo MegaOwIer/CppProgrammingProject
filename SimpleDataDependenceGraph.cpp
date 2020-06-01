@@ -1,4 +1,6 @@
 #include <fstream>
+#include <utility>
+
 #include <llvm/IR/Argument.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/CFG.h>
@@ -10,7 +12,6 @@
 #include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
-#include <utility>
 
 #include "Hash.h"
 #include "SimpleDataDependenceGraph.h"
@@ -34,14 +35,13 @@ bool SDDG::share(Instruction *fst, Instruction *snd) {
 
 void SDDGNode::addSuccessor(SDDGNode *dst) { mSuccessors.push_back(dst); }
 
-void SDDGNode::addPredecessor(SDDGNode *dst) { mPredecessors.push_back(dst); } 
+void SDDGNode::addPredecessor(SDDGNode *dst) { mPredecessors.push_back(dst); }
 
 vector<SDDGNode *> &SDDGNode::getSuccessors() { return mSuccessors; }
 
 vector<SDDGNode *> &SDDGNode::getPredecessors() { return mPredecessors; }
 
-
-inline Instruction *SDDGNode::getInst() { return mInst; }
+Instruction *SDDGNode::getInst() { return mInst; }
 
 SDDGNode::~SDDGNode() {}
 
@@ -58,7 +58,7 @@ SDDG::~SDDG() {
     mInterestingNodes.clear();
     mShares.clear();
 }
-DenseMap<Instruction *, SDDGNode *>& SDDG::getInterestingNodes(){return mInterestingNodes;}
+DenseMap<Instruction *, SDDGNode *> &SDDG::getInterestingNodes() { return mInterestingNodes; }
 
 namespace {
 
@@ -187,7 +187,7 @@ namespace dfa {
 
 class Definition {
     DenseMap<Value *, Instruction *> mDef;
-    
+
 public:
     Definition() = default;
     ~Definition() { mDef.clear(); }

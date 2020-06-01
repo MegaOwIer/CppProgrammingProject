@@ -4,7 +4,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <queue>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -16,7 +15,6 @@ using std::pair;
 using std::set;
 using std::string;
 using std::vector;
-using std::queue;
 
 class SDDGNode {
 private:
@@ -29,7 +27,7 @@ public:
     ~SDDGNode();
     void addSuccessor(SDDGNode *dst);
     void addPredecessor(SDDGNode *dst);
-    inline Instruction *getInst();
+    Instruction *getInst();
     vector<SDDGNode *> &getSuccessors();
     vector<SDDGNode *> &getPredecessors();
 };

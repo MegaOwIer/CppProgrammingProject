@@ -5,33 +5,37 @@
 #include <string>
 #include <vector>
 
-#include "llvm/IR/Function.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Instruction.h"
-#include "Hash.h"
+#include <llvm/ADT/SCCIterator.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Instruction.h>
 
-namespace support{
-using namespace llvm;
+#include "Hash.h"
+#include "SimpleDataDependenceGraph.h"
+
+namespace support {
+
+using std::map;
 using std::pair;
 using std::set;
 using std::string;
 using std::vector;
-using std::map;
+using namespace llvm;
 using namespace miner;
-using hash_t = __uint128_t;
 
-class itemSet{
+class itemSet {
 private:
     map<hash_t, int> mItems;
+
 public:
     itemSet();
     ~itemSet();
     void addItem(hash_t item);
     int getnumItem(hash_t item);
-    bool islarger(itemSet* I);
+    bool islarger(itemSet *I);
 };
 
-class SCCNode{
+class SCCNode {
 private:
     vector<BasicBlock *> blocks;
     set<SCCNode *> mSuccessors;
@@ -40,31 +44,32 @@ private:
 public:
     SCCNode(scc_iterator<Function *> iter);
     ~SCCNode();
-    void addBlock(BasicBlock* block);
-    void addSuccessor(SCCNode* Node);
-    void addPredecessor(SCCNode* Node);
-    set<SCCNode *>& getSuccessors();
-    set<SCCNode *>& getPredecessors();
-    vector<BasicBlock *>& getBlocks();
+    void addBlock(BasicBlock *block);
+    void addSuccessor(SCCNode *Node);
+    void addPredecessor(SCCNode *Node);
+    set<SCCNode *> &getSuccessors();
+    set<SCCNode *> &getPredecessors();
+    vector<BasicBlock *> &getBlocks();
     void buildRelation();
     bool dfsNode(SDDG *G, itemSet *I);
 };
 
-class SCCGraph{
+class SCCGraph {
 private:
-    vector<SCCNode*> SCCNodes;
-    SCCNode* EntryNode;
+    vector<SCCNode *> SCCNodes;
+    SCCNode *EntryNode;
+
 public:
     SCCGraph(Function &F);
     ~SCCGraph();
     void buildGraph();
-    bool dfsGraph(SDDG* G,itemSet* I);
-    SCCNode* getEntry();
+    bool dfsGraph(SDDG *G, itemSet *I);
+    SCCNode *getEntry();
 };
 
-map<BasicBlock*,SCCNode*> BBSCC;
-void addBlockSCC(BasicBlock* block, SCCNode* SCC);
-SCCNode* getSCC(BasicBlock* block);
+map<BasicBlock *, SCCNode *> BBSCC;
+void addBlockSCC(BasicBlock *block, SCCNode *SCC);
+SCCNode *getSCC(BasicBlock *block);
 
 // class SupportNode{
 // private:
@@ -95,5 +100,7 @@ SCCNode* getSCC(BasicBlock* block);
 // }BNmap;
 
 extern void transition(string &normalizedStr, Value *inst);
-} // namespace support
+
+}  // namespace support
+
 #endif

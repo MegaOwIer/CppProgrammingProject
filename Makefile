@@ -1,7 +1,7 @@
-CXX=`llvm-config --bindir`/clang
+CXX=`llvm-config --bindir`/clang++
 CXXFLAGS=`llvm-config --cxxflags` -shared -fPIC
 LDFLAGS=`llvm-config --ldflags`
-FILES=SimpleDataDependenceGraph.cpp MyPass.cpp Hash.cpp
+FILES=SimpleDataDependenceGraph.cpp MyPass.cpp Hash.cpp CountSupport.cpp
 INCLUDES=-I./include
 
 all: MyPass.so

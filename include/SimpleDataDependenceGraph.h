@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -15,6 +16,7 @@ using std::pair;
 using std::set;
 using std::string;
 using std::vector;
+using std::queue;
 
 class SDDGNode {
 private:
@@ -54,6 +56,7 @@ public:
      * 的图形文件（可修改输出格式，生成其他格式如jpg、svg等的图形文件）【需安装Graphviz】。
      */
     void dotify(bool showShareRelations = true);
+    DenseMap<Instruction *, SDDGNode *>& getInterestingNodes();
 };
 
 }  // namespace miner

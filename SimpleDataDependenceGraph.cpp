@@ -34,11 +34,12 @@ bool SDDG::share(Instruction *fst, Instruction *snd) {
 
 void SDDGNode::addSuccessor(SDDGNode *dst) { mSuccessors.push_back(dst); }
 
-void SDDGNode::addPredecessor(SDDGNode *dst) { mPredecessors.push_back(dst); }
+void SDDGNode::addPredecessor(SDDGNode *dst) { mPredecessors.push_back(dst); } 
 
 vector<SDDGNode *> &SDDGNode::getSuccessors() { return mSuccessors; }
 
 vector<SDDGNode *> &SDDGNode::getPredecessors() { return mPredecessors; }
+
 
 inline Instruction *SDDGNode::getInst() { return mInst; }
 
@@ -57,6 +58,7 @@ SDDG::~SDDG() {
     mInterestingNodes.clear();
     mShares.clear();
 }
+DenseMap<Instruction *, SDDGNode *>& SDDG::getInterestingNodes(){return mInterestingNodes;}
 
 namespace {
 
@@ -185,7 +187,7 @@ namespace dfa {
 
 class Definition {
     DenseMap<Value *, Instruction *> mDef;
-
+    
 public:
     Definition() = default;
     ~Definition() { mDef.clear(); }

@@ -2,8 +2,8 @@
 #define SIMPLESIMPLEDATADEPENDENCE_H_
 
 #include <set>
-#include <string>
 #include <vector>
+#include <utility>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -13,7 +13,6 @@ namespace miner {
 using namespace llvm;
 using std::pair;
 using std::set;
-using std::string;
 using std::vector;
 
 class SDDGNode {
@@ -54,7 +53,8 @@ public:
      * 的图形文件（可修改输出格式，生成其他格式如jpg、svg等的图形文件）【需安装Graphviz】。
      */
     void dotify(bool showShareRelations = true);
-    DenseMap<Instruction *, SDDGNode *>& getInterestingNodes();
+    DenseMap<Instruction *, SDDGNode *> &getInterestingNodes();
+    bool inShare(Instruction *fst, Instruction *snd);
 };
 
 }  // namespace miner

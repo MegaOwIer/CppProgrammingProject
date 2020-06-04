@@ -1,5 +1,6 @@
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/DenseSet.h>
+#include <llvm/ADT/SCCIterator.h>
 #include <llvm/IR/Argument.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/CFG.h>
@@ -14,24 +15,31 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
+#include "CountSupport.h"
+#include "DataDig.h"
 #include "SimpleDataDependenceGraph.h"
 
 using namespace llvm;
+using namespace datadig;
 
 namespace {
+
 class MyPass : public ModulePass {
 public:
     static char ID;
+    static const int mfs = 10;
+    static const int mis = 5;
     MyPass() : ModulePass(ID) {}
 
     virtual bool runOnModule(Module &M) {
-        for (Function &f : M) {
-            if (f.empty()) continue;
-            miner::SDDG func(&f);
-            func.buildSDDG();
-            func.flattenSDDG();
-            func.dotify();
-        }
+        find_FIS_IIS(M, mfs, mis);
+        itemSets *FIS = getFIS(), *IIS = getIIS();
+        errs() << "Frequent:" << "\n";
+        FIS->print();
+        errs() << "\n";
+        errs() << "Infrequent:" << "\n";
+        IIS->print();
+        rbclear();
         return false;
     }
 };

@@ -1,4 +1,5 @@
 #include <fstream>
+#include <string>
 #include <utility>
 
 #include <llvm/IR/Argument.h>
@@ -21,6 +22,7 @@ namespace miner {
 using std::endl;
 using std::ofstream;
 using std::pair;
+using std::string;
 
 // TRUE for successful insertion; FALSE indicates an existing pair.
 bool SDDG::share(Instruction *fst, Instruction *snd) {
@@ -59,6 +61,13 @@ SDDG::~SDDG() {
     mShares.clear();
 }
 DenseMap<Instruction *, SDDGNode *> &SDDG::getInterestingNodes() { return mInterestingNodes; }
+
+bool SDDG::inShare(Instruction *fst, Instruction *snd) {
+    pair<Instruction *, Instruction *> p1(fst, snd);
+    pair<Instruction *, Instruction *> p2(snd, fst);
+
+    return mShares.find(p1) != mShares.end() || mShares.find(p2) != mShares.end();
+}
 
 namespace {
 
@@ -200,6 +209,7 @@ public:
         }
         return nullptr;
     }
+#ifdef _LOCAL_DEBUG
     // 输出当前基本块的Definition信息，主要用于测试、检查代码正确性
     void dump() {
         errs() << "Definitions: \n";
@@ -208,6 +218,7 @@ public:
         }
         errs() << "\n";
     }
+#endif
 };
 
 class Use {
@@ -229,12 +240,14 @@ public:
         if (iter != mUse.end()) return iter->second;
         return nullptr;
     }
-    bool use(Value *var, Instruction *inst) {  // true 代表改变了
+    // true 代表改变了
+    bool use(Value *var, Instruction *inst) {
         if (mUse.find(var) == mUse.end()) mUse[var] = new set<Instruction *>;
         if (mUse[var]->find(inst) != mUse[var]->end()) return false;
         mUse[var]->insert(inst);
         return true;
     }
+#ifdef _LOCAL_DEBUG
     void dump() {
         errs() << "Use:\n";
         for (auto iter = mUse.begin(); iter != mUse.end(); iter++) {
@@ -246,6 +259,7 @@ public:
             }
         }
     }
+#endif
 };
 
 // 以下两个以“Share”开始的类仅用于计算数据共享关系
@@ -288,6 +302,7 @@ public:
             vSet->insert(def);
         }
     }
+#ifdef _LOCAL_DEBUG
     void dump() {
         errs() << "ShareDefinition:\n";
         for (auto iter = mShareDef.begin(); iter != mShareDef.end(); iter++) {
@@ -299,6 +314,7 @@ public:
             }
         }
     }
+#endif
 };
 
 class ShareUse {
@@ -338,6 +354,7 @@ public:
         set<Instruction *> *vUse = findOrCreateSharedUse(var);
         vUse->insert(inst);
     }
+#ifdef _LOCAL_DEBUG
     void dump() {
         errs() << "ShareUse:\n";
         for (auto iter = mShareUse.begin(); iter != mShareUse.end(); iter++) {
@@ -349,6 +366,7 @@ public:
             }
         }
     }
+#endif
 };
 
 template <typename TK, typename TV>
@@ -526,7 +544,6 @@ void SDDG::buildSDDG() {
                         }
                     }
                 }
-                if (interesting) mNodes[inst] = new SDDGNode(inst);
             }
         }
     }
@@ -815,7 +832,6 @@ void SDDG::buildSDDG() {
             for (auto iter = bbSDefIns.begin(); iter != bbSDefIns.end(); iter++) {
                 Value *key = iter->first;
                 // copy from IN to tmpOUT only when not defined in current BB
-                // errs() << *key << '\n';
                 if (bbDefs.find(key) == bbDefs.end()) {
                     set<Value *> *alreadyInIN = iter->second;
                     set<Value *> *newTmpSet = new set<Value *>;
@@ -853,11 +869,13 @@ void SDDG::buildSDDG() {
             dfa::mergeTwoMaps(bbSUseTmpOUT, sDfaShareUses[&bb]->getShareUses());
             // 2.2.6 SahreUse: merge tmpOUT to OUT(ShareUse)
             changed = dfa::mergeTwoMaps(bbSUseOUT->getShareUses(), bbSUseTmpOUT) | changed;
-            // errs() << "\n After computing OUT for BB" << &bb << "\n";
-            // errs() << " ~~~~ OUT : ShareDef ~~~~\n";
-            // bbSDefOUT->dump();
-            // errs() << "\n ~~~~ OUT : ShareUse ~~~~\n";
-            // bbSUseOUT->dump();
+#ifdef _LOCAL_DEBUG
+            errs() << "\n After computing OUT for BB" << &bb << "\n";
+            errs() << " ~~~~ OUT : ShareDef ~~~~\n";
+            bbSDefOUT->dump();
+            errs() << "\n ~~~~ OUT : ShareUse ~~~~\n";
+            bbSUseOUT->dump();
+#endif
         }
     }
     // 3. update DataShare with IN(ShareUse : B) and ShareUse(B)
@@ -917,8 +935,9 @@ void SDDG::flattenSDDG() {
     // 取出所有的 call 和 ret 语句
     for (auto iter : mNodes) {
         Instruction *inst = iter.first;
-        if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode())
+        if (Instruction::Call == inst->getOpcode() || Instruction::Ret == inst->getOpcode()) {
             mInterestingNodes[inst] = new SDDGNode(inst);
+        }
     }
     set<Instruction *> visited;
     for (auto iter : mInterestingNodes) {

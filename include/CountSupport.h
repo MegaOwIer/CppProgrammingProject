@@ -1,6 +1,7 @@
 #ifndef COUNTSUPPORT_H_
 #define COUNTSUPPORT_H_
 
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -8,20 +9,19 @@
 #include <llvm/ADT/SCCIterator.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
-#include <llvm/IR/Instruction.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include "Hash.h"
 #include "SimpleDataDependenceGraph.h"
 
-namespace support {
+namespace SupportCount {
 
+using namespace llvm;
+using namespace miner;
 using std::map;
-using std::pair;
 using std::set;
 using std::string;
 using std::vector;
-using namespace llvm;
-using namespace miner;
 
 class itemSet {
 private:
@@ -29,10 +29,20 @@ private:
 
 public:
     itemSet();
+    itemSet(Instruction *inst);
     ~itemSet();
+    map<hash_t, int> &getSet();
     void addItem(hash_t item);
     int getnumItem(hash_t item);
     bool islarger(itemSet *I);
+    bool issame(itemSet *I);
+    bool isempty();
+    int getCommon(itemSet *I);
+    int getSize();
+    void print(raw_ostream &os);
+#ifdef _LOCAL_DEBUG
+    void printHash();
+#endif
 };
 
 class SCCNode {
@@ -67,40 +77,14 @@ public:
     SCCNode *getEntry();
 };
 
-map<BasicBlock *, SCCNode *> BBSCC;
 void addBlockSCC(BasicBlock *block, SCCNode *SCC);
 SCCNode *getSCC(BasicBlock *block);
 
-// class SupportNode{
-// private:
-//     string normalizedStr;
-// 	hash_t HashValue;
-// 	vector<SupportNode *> mSuccessors;
-//     vector<SupportNode *> mPredecessors;
-// public:
-// 	SupportNode(Value *inst);
-//     ~SupportNode();
-//     void addSuccessor(SupportNode *dst);
-//     void addPredecessor(SupportNode *dst);
-//     inline Instruction *getInst();
-//     vector<SupportNode *> &getSuccessors();
-//     vector<SupportNode *> &getPredecessors();
-// };
+void transition(string &normalizedStr, Value *inst);
+int CountSupport(Function &F, itemSet *I);
+itemSet *merge_itemSet(itemSet *fst, itemSet *snd);
+void rbclear();
 
-// class BlockNodeSet{
-// private:
-//     map<BasicBlock*,set<SDDGNode*>* > mTrans;
-//     map<SDDGNode*, BasicBlock*> rTrans;
-// public:
-//     BlockNodeSet();
-//     ~BlockNodeSet();
-//     void addNode(BasicBlock* block, SDDGNode* inst);
-//     set<SDDGNode*>* getSDDGNodes(BasicBlock* block);
-//     BasicBlock* getBlock(SDDGNode* inst);
-// }BNmap;
-
-extern void transition(string &normalizedStr, Value *inst);
-
-}  // namespace support
+}  // namespace SupportCount
 
 #endif

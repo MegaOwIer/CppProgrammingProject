@@ -7,7 +7,7 @@ INCLUDES=-I./include
 all: MyPass.so
 
 debug: *.cpp include/*.h
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(FILES) -O2 -o MyPass.so $(INCLUDES) -DLOCAL_DEBUG
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(FILES) -O2 -o MyPass.so $(INCLUDES) -D_LOCAL_DEBUG
 
 MyPass.so: *.cpp include/*.h
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(FILES) -O2 -o MyPass.so $(INCLUDES)

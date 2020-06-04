@@ -8,6 +8,7 @@
 + (2020.06.02) Please DO NOT use quotation marks(`""`) to include headerfiles in llvm library, use angle brackets(`<>`) instead.
 + (2020.05.06) Please format the code with style defined in `.clang-format` before committing.
   + For VS-Code users, you can simply press `Shift+Alt+F` to format the code.
+  + If it doesn't work, you can try to append `"C_Cpp.clang_format_style": "file"` after your workspace setting file.
 + (2020.05.06) Please DO NOT commit your local test scripts to the repo. Put then in the folder `test/` instead.
 
 ## 进度列表

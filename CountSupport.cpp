@@ -144,6 +144,10 @@ bool itemSet::issame(itemSet *I) { return islarger(I) && (I->islarger(this)); }
 
 bool itemSet::isempty() { return mItems.empty(); }
 
+int itemSet::getSupportValue() { return SupportValue; }
+
+void itemSet::setSupportValue(int x) { SupportValue = x; }
+
 map<hash_t, int> &itemSet::getSet() { return mItems; }
 
 int itemSet::getCommon(itemSet *I) {
@@ -160,7 +164,7 @@ void itemSet::print(raw_ostream &os = errs()) {
     for (auto pr : mItems) {
         for (int i = 1; i <= pr.second; i++) {
             ++cnt;
-            os << *hash2Str[pr.first];
+            os << MD5decoding(pr.first).c_str();
             if (cnt != siz) os << ",";
         }
     }

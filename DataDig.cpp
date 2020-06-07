@@ -98,6 +98,7 @@ int support(Module &M, itemSet *I) {
     for (auto &F : M) {
         ans += SupportCount::CountSupport(F, I);
     }
+    I->setSupportValue(ans);
     return ans;
 }
 

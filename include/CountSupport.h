@@ -26,7 +26,7 @@ using std::vector;
 class itemSet {
 private:
     map<hash_t, int> mItems;
-
+    int SupportValue;
 public:
     itemSet();
     itemSet(Instruction *inst);
@@ -40,6 +40,8 @@ public:
     int getCommon(itemSet *I);
     int getSize();
     void print(raw_ostream &os);
+    void getSupportValue();
+    void addSupportValue(int x);
 #ifdef _LOCAL_DEBUG
     void printHash();
 #endif

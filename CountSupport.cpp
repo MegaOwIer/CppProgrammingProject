@@ -62,13 +62,6 @@ void transition(string &normalizedStr, Value *inst) {
 }
 
 static set<BasicBlock *> UsefulBlocks;
-static map<hash_t, string *> hash2Str;
-
-void rbclear() {
-    for (auto pr : hash2Str) {
-        delete pr.second;
-    }
-}
 
 bool NodeUseful(SDDGNode *Node, itemSet *I) {
     BasicBlock *BB = Node->getInst()->getParent();
@@ -76,8 +69,6 @@ bool NodeUseful(SDDGNode *Node, itemSet *I) {
     string label;
     transition(label, Node->getInst());
     hash_t hashValue = MD5encoding(label.c_str());
-    string *temp = new string(label);
-    hash2Str[hashValue] = temp;
     return I->getnumItem(hashValue);
 }
 

@@ -40,8 +40,8 @@ public:
     int getCommon(itemSet *I);
     int getSize();
     void print(raw_ostream &os);
-    void getSupportValue();
-    void addSupportValue(int x);
+    int getSupportValue();
+    void setSupportValue(int x);
 #ifdef _LOCAL_DEBUG
     void printHash();
 #endif

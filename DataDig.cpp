@@ -53,6 +53,7 @@ void itemSets::merge_Item(itemSet *item) {
         for (auto pr : item->getSet())
             newSet->getSet()[pr.first] = pr.second;
         mSets.insert(newSet);
+        // delete newSet;
     }
 }
 
@@ -113,7 +114,9 @@ void find_FIS_IIS(Module &M, int mfs, int mis) {
         for (auto &BB : F) {
             for (auto &inst : BB) {
                 if (Instruction::Call == inst.getOpcode()) {
-                    L->merge_Item(new itemSet(&inst));
+                    itemSet* tmp = new itemSet(&inst);
+                    L->merge_Item(tmp);
+                    delete tmp;
                 }
             }
         }

@@ -35,11 +35,10 @@ public:
         find_FIS_IIS(M, mfs, mis);
         itemSets *FIS = getFIS(), *IIS = getIIS();
         errs() << "Frequent:" << "\n";
-        FIS->print();
+        FIS->print(errs());
         errs() << "\n";
         errs() << "Infrequent:" << "\n";
-        IIS->print();
-        rbclear();
+        IIS->print(errs());
         return false;
     }
 };

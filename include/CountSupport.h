@@ -43,6 +43,7 @@ public:
     void print(raw_ostream &os = errs());
     int getSupportValue();
     void setSupportValue(int x);
+    void setFormal();
 #ifdef _LOCAL_DEBUG
     void printHash();
 #endif

@@ -21,7 +21,7 @@ itemSets::itemSets(itemSets *items) {
             } else if (fst->getCommon(snd) == fst->getSize()) {
                 for (auto pr : fst->getSet()) {
                     itemSet *nowSet;
-                    nowSet = merge_itemSet(fst, snd);
+                    nowSet = merge_itemSet(fst, snd); 
                     nowSet->addItem(pr.first);
                     if (!isIn(nowSet)) {
                         mSets.insert(nowSet);
@@ -150,6 +150,10 @@ void find_FIS_IIS(Module &M, int mfs, int mis) {
         FIS.merge_Set(L);
         IIS.merge_Set(N);
     }
+    for(auto item:IIS.getSet())
+        item->setFormal();
+    for(auto item:FIS.getSet())
+        item->setFormal();
 }
 
 }  // namespace datadig

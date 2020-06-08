@@ -302,6 +302,18 @@ int itemSet::getSize() {
     return ans;
 }
 
+void itemSet::setFormal(){
+    set<hash_t> delt;
+    for (auto item : getSet()){
+        if(getSet()[item.first]==0){
+            delt.insert(item.first);
+        }
+    }
+    for (auto item : delt){
+        getSet().erase(item);
+    }
+}
+
 int CountSupport(Function &F, itemSet *I) {
     if (F.empty()) {
 #ifdef _LOCAL_DEBUG

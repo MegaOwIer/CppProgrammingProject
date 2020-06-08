@@ -2,7 +2,6 @@
 #include <string>
 #include <utility>
 
-#include <llvm/IR/Argument.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/CFG.h>
 #include <llvm/IR/Instruction.h>
@@ -700,7 +699,7 @@ void SDDG::buildSDDG() {
         for (auto instIter = bb.begin(); instIter != bb.end(); instIter++) {
             Instruction *inst = dyn_cast<Instruction>(instIter);
 #ifdef _LOCAL_DEBUG
-            errs() << "Analyze Inst: " << *inst << "  **#OP: " << inst->getNumOperands() << "\n";
+            // errs() << "Analyze Inst: " << *inst << "  **#OP: " << inst->getNumOperands() << "\n";
 #endif
             if (Instruction::Alloca == inst->getOpcode()) {
                 continue;

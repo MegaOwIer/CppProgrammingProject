@@ -1,3 +1,7 @@
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Intrinsics.h>
+#include <llvm/Support/Casting.h>
+
 #include "DataDig.h"
 
 namespace datadig {
@@ -49,11 +53,8 @@ bool itemSets::isIn(itemSet *item) {
 
 void itemSets::merge_Item(itemSet *item) {
     if (!isIn(item)) {
-        itemSet *newSet = new itemSet();
-        for (auto pr : item->getSet())
-            newSet->getSet()[pr.first] = pr.second;
+        itemSet *newSet = new itemSet(item);
         mSets.insert(newSet);
-        // delete newSet;
     }
 }
 
@@ -63,7 +64,9 @@ void itemSets::prune() {
     set<itemSet *> delt;
     for (auto iSet : mSets) {
         for (auto item : iSet->getSet()) {
-            iSet->getSet()[item.first]--;
+            if (!--iSet->getSet()[item.first]) {
+                iSet->getSet().erase(item.first);
+            }
             bool inIIS = IIS.isIn(iSet);
             iSet->getSet()[item.first]++;
             if (inIIS) {
@@ -81,9 +84,10 @@ void itemSets::prune() {
 bool itemSets::empty() { return mSets.begin() == mSets.end(); }
 set<itemSet *> &itemSets::getSet() { return mSets; }
 
-void itemSets::print(raw_ostream &os = errs()) {
+void itemSets::print(raw_ostream &os) {
     for (auto iSet : mSets) {
         iSet->print(os);
+        os << "\n";
     }
 }
 
@@ -114,7 +118,11 @@ void find_FIS_IIS(Module &M, int mfs, int mis) {
         for (auto &BB : F) {
             for (auto &inst : BB) {
                 if (Instruction::Call == inst.getOpcode()) {
-                    itemSet* tmp = new itemSet(&inst);
+                    Function *func = (dyn_cast<CallInst>(&inst))->getCalledFunction();
+                    if (func->isIntrinsic()) {
+                        if (func->getIntrinsicID() != Intrinsic::memcpy) continue;
+                    }
+                    itemSet *tmp = new itemSet(&inst);
                     L->merge_Item(tmp);
                     delete tmp;
                 }

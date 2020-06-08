@@ -15,14 +15,16 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-#include "CountSupport.h"
 #include "DataDig.h"
+#include "RuleGenerator.h"
 #include "SimpleDataDependenceGraph.h"
 
 using namespace llvm;
-using namespace datadig;
 
 namespace {
+
+using namespace datadig;
+using namespace ruleGen;
 
 class MyPass : public ModulePass {
 public:
@@ -32,16 +34,26 @@ public:
     MyPass() : ModulePass(ID) {}
 
     virtual bool runOnModule(Module &M) {
+        for (Function &f : M) {
+            if (f.empty()) continue;
+            miner::SDDG func(&f);
+            func.buildSDDG();
+            func.flattenSDDG();
+        }
         find_FIS_IIS(M, mfs, mis);
         itemSets *FIS = getFIS(), *IIS = getIIS();
-        errs() << "Frequent:" << "\n";
-        FIS->print(errs());
+        ruleSet *PARs = new ruleSet, *NARs = new ruleSet;
+        rule_generator(M, FIS, IIS, 0.85, PARs, NARs);
+        errs() << "PARs" << "\n";
+        PARs->display();
         errs() << "\n";
-        errs() << "Infrequent:" << "\n";
-        IIS->print(errs());
+        errs() << "NARs" << "\n";
+        NARs->display();
+        errs() << "\n";
         return false;
     }
 };
+
 }  // namespace
 
 char MyPass::ID = 0;

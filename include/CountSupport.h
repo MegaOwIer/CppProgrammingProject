@@ -29,6 +29,7 @@ private:
     int SupportValue;
 public:
     itemSet();
+    itemSet(const itemSet *src);
     itemSet(Instruction *inst);
     ~itemSet();
     map<hash_t, int> &getSet();
@@ -39,7 +40,7 @@ public:
     bool isempty();
     int getCommon(itemSet *I);
     int getSize();
-    void print(raw_ostream &os);
+    void print(raw_ostream &os = errs());
     int getSupportValue();
     void setSupportValue(int x);
 #ifdef _LOCAL_DEBUG

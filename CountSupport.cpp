@@ -119,6 +119,11 @@ bool itemSet::islarger(itemSet *I) {
 
 itemSet::itemSet() {}
 
+itemSet::itemSet(const itemSet *src) {
+    SupportValue = src->SupportValue;
+    mItems = src->mItems;
+}
+
 itemSet::itemSet(Instruction *inst) {
     string label;
     transition(label, inst);
@@ -149,7 +154,7 @@ int itemSet::getCommon(itemSet *I) {
     return ans;
 }
 
-void itemSet::print(raw_ostream &os = errs()) {
+void itemSet::print(raw_ostream &os) {
     int cnt = 0, siz = getSize();
     os << "{";
     for (auto pr : mItems) {
@@ -159,7 +164,7 @@ void itemSet::print(raw_ostream &os = errs()) {
             if (cnt != siz) os << ",";
         }
     }
-    os << "}\n";
+    os << "}";
 }
 
 #ifdef _LOCAL_DEBUG
@@ -170,7 +175,7 @@ void itemSet::printHash() {
             errs() << (int)(pr.first & 2047) << ",";
         }
     }
-    errs() << "}\n";
+    errs() << "}";
 }
 #endif
 
@@ -312,17 +317,17 @@ int CountSupport(Function &F, itemSet *I) {
     addShare(&SDDGF);
 
 #ifdef _LOCAL_DEBUG
-    SDDGF.dotify(1);
-    errs() << "pre flattensddg\n";
-    errs() << "\n";
-    for (auto Node : SDDGF.getInterestingNodes()) {
-        string label;
-        transition(label, Node.first);
-        errs() << "call:" << label << "\n";
-        errs() << (void *)Node.first << " " << label << "\n";
-    }
-    errs() << "\n";
-    I->printHash();
+    // SDDGF.dotify(1);
+    // errs() << "pre flattensddg\n";
+    // errs() << "\n";
+    // for (auto Node : SDDGF.getInterestingNodes()) {
+    //     string label;
+    //     transition(label, Node.first);
+    //     errs() << "call:" << label << "\n";
+    //     errs() << (void *)Node.first << " " << label << "\n";
+    // }
+    // errs() << "\n";
+    // I->printHash();
 #endif
 
     return SCCF.dfsGraph(&SDDGF, I);

@@ -18,6 +18,6 @@
   + [x] (By hxt) 规范化
   + [x] (By wcr) 字符串 hash
 + [x] (By llj & xq) 项集挖掘
-+ 规则生成
-+ 缺陷检测
++ [x] (By wcr & xq) 规则生成
++ [x] (By wcr) 缺陷检测
 + 图形化界面

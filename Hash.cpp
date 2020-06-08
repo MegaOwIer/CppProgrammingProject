@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <cstring>
+#include <map>
 
 #include "Hash.h"
 
@@ -197,6 +199,8 @@ void MD5_CTX::Transform(unsigned int state[4], unsigned char block[64]) {
 
 }  // namespace
 
+static std::map<hash_t, std::string> hashMap;
+
 hash_t MD5encoding(const char *s) {
     static unsigned char e[16];
 
@@ -209,10 +213,16 @@ hash_t MD5encoding(const char *s) {
     for (int i = 0; i < 16; i++) {
         res = res << 8 | e[i];
     }
+    hashMap[res] = std::string(s);
     return res;
 }
 
-std::string to_string(hash_t val) {
-    uint64_t higher = val >> 64, lower = val & ULLONG_MAX;
+std::string to_string(hash_t hash_val) {
+    uint64_t higher = hash_val >> 64, lower = hash_val & ULLONG_MAX;
     return std::to_string(higher) + "-" + std::to_string(lower);
+}
+
+std::string MD5decoding(hash_t hash_val) {
+    assert(hashMap.count(hash_val));
+    return hashMap[hash_val];
 }

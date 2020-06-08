@@ -29,7 +29,7 @@ public:
     bool empty();
     void prune();
     set<itemSet *> &getSet();
-    void print(raw_ostream &os);
+    void print(raw_ostream &os = errs());
 #ifdef _LOCAL_DEBUG
     void printHash();
 #endif

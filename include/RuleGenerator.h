@@ -19,13 +19,21 @@ class rule_t {
 
 public:
     rule_t() = delete;
-    rule_t(itemSet *_cond, itemSet *_full, hash_t _tar, double _p);
-    bool operator<(const rule_t &u);
-    itemSet *getCond();
-    itemSet *getFull();
-    hash_t getTarget();
-    double getConfidence();
-    void display(raw_ostream &os = errs());
+
+    rule_t(itemSet *_cond, itemSet *_full, hash_t _tar, double _p)
+        : cond(_cond), full(_full), target(_tar), confidence(_p) {}
+
+    bool operator<(const rule_t &u) { return confidence > u.confidence; }
+
+    itemSet *getCond() const { return cond; }
+
+    itemSet *getFull() const { return full; }
+
+    hash_t getTarget() const { return target; }
+
+    double getConfidence() { return confidence; }
+
+    void display(raw_ostream &os = errs()) const;
 };
 
 class ruleSet {
@@ -33,9 +41,17 @@ class ruleSet {
 
 public:
     ruleSet() = default;
+
     ~ruleSet();
-    void addRule(itemSet *cond, itemSet *full, hash_t target, double confidence);
-    void sort();
+
+    void addRule(itemSet *cond, itemSet *full, hash_t target, double confidence) {
+        data.emplace_back(cond, full, target, confidence);
+    }
+
+    void sort() { std::sort(data.begin(), data.end()); }
+
+    const vector<rule_t> &getData() { return data; }
+
     void display(raw_ostream &os = errs());
 };
 

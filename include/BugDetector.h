@@ -1,35 +1,55 @@
 #ifndef BUGDETECTOR_H_
 #define BUGDETECTOR_H_
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include "Hash.h"
 #include "RuleGenerator.h"
+#include "CountSupport.h"
 
 namespace bugfinder {
 
 using namespace llvm;
-using ruleGen::rule_t;
+using namespace ruleGen;
+
+using SupportCount::SupportInfo_t;
 
 class MessageBox {
 public:
-    rule_t *rule;
-    Instruction *inst;
+    const rule_t *rule;
+    SupportInfo_t detail;
+    std::string info;
 
     MessageBox() = delete;
-    MessageBox(rule_t *_rule, Instruction *_inst) : rule(_rule), inst(_inst) {}
-    virtual void display(raw_ostream &os = errs()) = 0;
+    MessageBox(const rule_t *_rule, const SupportInfo_t &_detail) : rule(_rule), detail(_detail) {}
+    virtual std::string what() const = 0;
 };
 
 class MessageBoxP : public MessageBox {
-    std::string info;
-
 public:
     MessageBoxP() = delete;
-    MessageBoxP(rule_t *_rule, Instruction *_inst) : MessageBox(_rule, _inst) {}
+    MessageBoxP(const rule_t *_rule, const SupportInfo_t &_detail);
+
+    virtual std::string what() const { return info; }
 };
+
+class MessageBoxN : public MessageBox {
+public:
+    MessageBoxN() = delete;
+    MessageBoxN(const rule_t *_rule, const SupportInfo_t &_detail);
+
+    virtual std::string what() const { return info; }
+};
+
+std::vector<MessageBoxP> check_positive(Module &M, ruleSet *PARs);
+
+std::vector<MessageBoxN> check_negative(Module &M, ruleSet *NARs);
 
 }  // namespace bugfinder
 

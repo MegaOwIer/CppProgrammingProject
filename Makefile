@@ -1,7 +1,7 @@
 CXX=`llvm-config --bindir`/clang
-CXXFLAGS=`llvm-config --cxxflags` -shared -fPIC
+CXXFLAGS=`llvm-config --cxxflags` -shared -fPIC -std=c++17
 LDFLAGS=`llvm-config --ldflags`
-FILES=SimpleDataDependenceGraph.cpp MyPass.cpp Hash.cpp CountSupport.cpp DataDig.cpp RuleGenerator.cpp
+FILES=SimpleDataDependenceGraph.cpp MyPass.cpp Hash.cpp CountSupport.cpp DataDig.cpp RuleGenerator.cpp BugDetector.cpp
 INCLUDES=-I./include
 
 all: MyPass.so

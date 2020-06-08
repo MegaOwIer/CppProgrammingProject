@@ -27,22 +27,34 @@ class itemSet {
 private:
     map<hash_t, int> mItems;
     int SupportValue;
+
 public:
     itemSet();
+
     itemSet(const itemSet *src);
+
     itemSet(Instruction *inst);
-    ~itemSet();
-    map<hash_t, int> &getSet();
-    void addItem(hash_t item);
-    int getnumItem(hash_t item);
+
+    ~itemSet() { mItems.clear(); }
+
+    map<hash_t, int> &getSet() { return mItems; }
+    const map<hash_t, int> &getSet() const { return mItems; }
+
+    bool isempty() const { return mItems.empty(); }
+
+    bool issame(itemSet *I) { return islarger(I) && (I->islarger(this)); }
+
+    void addItem(hash_t item) { mItems[item]++; }
+
+    int getnumItem(hash_t item) { return mItems[item]; }
+
+    int getSupportValue() const { return SupportValue; }
+    void setSupportValue(int x) { SupportValue = x; }
+
     bool islarger(itemSet *I);
-    bool issame(itemSet *I);
-    bool isempty();
     int getCommon(itemSet *I);
     int getSize();
     void print(raw_ostream &os = errs());
-    int getSupportValue();
-    void setSupportValue(int x);
     void setFormal();
 #ifdef _LOCAL_DEBUG
     void printHash();
@@ -85,8 +97,13 @@ void addBlockSCC(BasicBlock *block, SCCNode *SCC);
 SCCNode *getSCC(BasicBlock *block);
 
 void transition(string &normalizedStr, Value *inst);
-pair<int, set< pair<hash_t, Instruction*> > >  CountSupport(Function &F, itemSet *I, bool genSet);
+
+using SupportInfo_t = map<hash_t, std::vector<Instruction *>>;
+
+pair<int, SupportInfo_t> CountSupport(Function &F, itemSet *I, bool genSet = false);
+
 itemSet *merge_itemSet(itemSet *fst, itemSet *snd);
+
 void rbclear();
 
 }  // namespace SupportCount

@@ -19,15 +19,15 @@
 #include "SimpleDataDependenceGraph.h"
 
 namespace SupportCount {
+
 using std::make_pair;
-using std::pair;
 using std::max;
+using std::pair;
 using std::queue;
 using std::vector;
 
-map<BasicBlock *, SCCNode *> BBSCC;
-
-set< pair<hash_t, Instruction*> > instSet;
+static map<BasicBlock *, SCCNode *> BBSCC;
+static SupportInfo_t instSet;
 
 void transition(string &normalizedStr, Value *inst) {
     raw_string_ostream rso(normalizedStr);
@@ -76,7 +76,7 @@ bool NodeUseful(SDDGNode *Node, itemSet *I) {
     return I->getnumItem(hashValue);
 }
 
-vector<SDDGNode*> list;
+vector<SDDGNode *> list;
 
 void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visited, bool genSet) {
 #ifdef _LOCAL_DEBUG
@@ -86,8 +86,7 @@ void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visit
         return;
     }
     visited.insert(Node);
-    if(genSet)
-        list.push_back(Node);
+    if (genSet) list.push_back(Node);
     string label;
     transition(label, Node->getInst());
 #ifdef _LOCAL_DEBUG
@@ -111,12 +110,12 @@ bool check(SDDG *Graph, itemSet *I, bool genS) {
             list.clear();
             dfsSDDG(Node.second, I, &nowSet, visited, genS);
             if (nowSet.islarger(I)) {
-                if(genS){
-                    for(auto Node : list){
+                if (genS) {
+                    for (auto Node : list) {
                         string label;
                         transition(label, Node->getInst());
                         hash_t HashValue = MD5encoding(label.c_str());
-                        instSet.insert(make_pair(HashValue, Node->getInst()));
+                        instSet[HashValue].push_back(Node->getInst());
                     }
                 }
                 return true;
@@ -146,22 +145,6 @@ itemSet::itemSet(Instruction *inst) {
     transition(label, inst);
     addItem(MD5encoding(label.c_str()));
 }
-
-itemSet::~itemSet() { mItems.clear(); }
-
-void itemSet::addItem(hash_t item) { mItems[item]++; }
-
-int itemSet::getnumItem(hash_t item) { return mItems[item]; }
-
-bool itemSet::issame(itemSet *I) { return islarger(I) && (I->islarger(this)); }
-
-bool itemSet::isempty() { return mItems.empty(); }
-
-int itemSet::getSupportValue() { return SupportValue; }
-
-void itemSet::setSupportValue(int x) { SupportValue = x; }
-
-map<hash_t, int> &itemSet::getSet() { return mItems; }
 
 int itemSet::getCommon(itemSet *I) {
     int ans = 0;
@@ -319,23 +302,22 @@ int itemSet::getSize() {
     return ans;
 }
 
-void itemSet::setFormal(){
+void itemSet::setFormal() {
     set<hash_t> delt;
-    for (auto item : getSet()){
-        if(getSet()[item.first]==0){
+    for (auto item : getSet()) {
+        if (getSet()[item.first] == 0) {
             delt.insert(item.first);
         }
     }
-    for (auto item : delt){
+    for (auto item : delt) {
         getSet().erase(item);
     }
 }
 
-
-pair<int, set< pair<hash_t, Instruction*> > > CountSupport(Function &F, itemSet *I, bool genSet = 0) {
+pair<int, SupportInfo_t> CountSupport(Function &F, itemSet *I, bool genSet) {
     if (F.empty()) {
 #ifdef _LOCAL_DEBUG
-        errs() << F.getName() << " is empty\n";
+        // errs() << F.getName() << " is empty\n";
 #endif
         return make_pair(0, instSet);
     }

@@ -19,11 +19,15 @@
 #include "SimpleDataDependenceGraph.h"
 
 namespace SupportCount {
-
+using std::make_pair;
+using std::pair;
 using std::max;
 using std::queue;
+using std::vector;
 
 map<BasicBlock *, SCCNode *> BBSCC;
+
+set< pair<hash_t, Instruction*> > instSet;
 
 void transition(string &normalizedStr, Value *inst) {
     raw_string_ostream rso(normalizedStr);
@@ -72,7 +76,9 @@ bool NodeUseful(SDDGNode *Node, itemSet *I) {
     return I->getnumItem(hashValue);
 }
 
-void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visited) {
+vector<SDDGNode*> list;
+
+void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visited, bool genSet) {
 #ifdef _LOCAL_DEBUG
     errs() << "gotin " << Node->getInst() << "\n";
 #endif
@@ -80,6 +86,8 @@ void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visit
         return;
     }
     visited.insert(Node);
+    if(genSet)
+        list.push_back(Node);
     string label;
     transition(label, Node->getInst());
 #ifdef _LOCAL_DEBUG
@@ -88,20 +96,29 @@ void dfsSDDG(SDDGNode *Node, itemSet *I, itemSet *nowSet, set<SDDGNode *> &visit
     hash_t hashValue = MD5encoding(label.c_str());
     nowSet->addItem(hashValue);
     for (auto toNode : Node->getSuccessors()) {
-        dfsSDDG(toNode, I, nowSet, visited);
+        dfsSDDG(toNode, I, nowSet, visited, genSet);
     }
     for (auto toNode : Node->getPredecessors()) {
-        dfsSDDG(toNode, I, nowSet, visited);
+        dfsSDDG(toNode, I, nowSet, visited, genSet);
     }
 }
 
-bool check(SDDG *Graph, itemSet *I) {
+bool check(SDDG *Graph, itemSet *I, bool genS) {
     set<SDDGNode *> visited;
     for (auto Node : Graph->getInterestingNodes())
         if (visited.find(Node.second) == visited.end()) {
             itemSet nowSet;
-            dfsSDDG(Node.second, I, &nowSet, visited);
+            list.clear();
+            dfsSDDG(Node.second, I, &nowSet, visited, genS);
             if (nowSet.islarger(I)) {
+                if(genS){
+                    for(auto Node : list){
+                        string label;
+                        transition(label, Node->getInst());
+                        hash_t HashValue = MD5encoding(label.c_str());
+                        instSet.insert(make_pair(HashValue, Node->getInst()));
+                    }
+                }
                 return true;
             }
         }
@@ -213,17 +230,17 @@ void SCCNode::buildRelation() {
     }
 }
 
-bool SCCNode::dfsNode(SDDG *G, itemSet *I) {
+bool SCCNode::dfsNode(SDDG *G, itemSet *I, bool genSet) {
     for (auto BB : blocks)
         UsefulBlocks.insert(BB);
     for (auto toNode : getSuccessors())
-        if (toNode->dfsNode(G, I)) {
+        if (toNode->dfsNode(G, I, genSet)) {
             for (auto BB : blocks)
                 UsefulBlocks.erase(BB);
             return true;
         }
     if (getSuccessors().begin() == getSuccessors().end()) {
-        return check(G, I);
+        return check(G, I, genSet);
     }
     for (auto BB : blocks)
         UsefulBlocks.erase(BB);
@@ -263,9 +280,9 @@ void SCCGraph::buildGraph() {
     }
 }
 
-bool SCCGraph::dfsGraph(SDDG *G, itemSet *I) {
+bool SCCGraph::dfsGraph(SDDG *G, itemSet *I, bool genSet) {
     SCCNode *now = getEntry();
-    return now->dfsNode(G, I);
+    return now->dfsNode(G, I, genSet);
 }
 
 SCCNode *SCCGraph::getEntry() { return EntryNode; }
@@ -314,13 +331,15 @@ void itemSet::setFormal(){
     }
 }
 
-int CountSupport(Function &F, itemSet *I) {
+
+pair<int, set< pair<hash_t, Instruction*> > > CountSupport(Function &F, itemSet *I, bool genSet = 0) {
     if (F.empty()) {
 #ifdef _LOCAL_DEBUG
         errs() << F.getName() << " is empty\n";
 #endif
-        return 0;
+        return make_pair(0, instSet);
     }
+    instSet.clear();
     miner::SDDG SDDGF(&F);
     SCCGraph SCCF(F);
     SCCF.buildGraph();
@@ -342,7 +361,7 @@ int CountSupport(Function &F, itemSet *I) {
     // I->printHash();
 #endif
 
-    return SCCF.dfsGraph(&SDDGF, I);
+    return make_pair(SCCF.dfsGraph(&SDDGF, I, genSet), instSet);
 }
 
 }  // namespace SupportCount

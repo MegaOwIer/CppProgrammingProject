@@ -65,7 +65,7 @@ public:
     set<SCCNode *> &getPredecessors();
     vector<BasicBlock *> &getBlocks();
     void buildRelation();
-    bool dfsNode(SDDG *G, itemSet *I);
+    bool dfsNode(SDDG *G, itemSet *I, bool genSet);
 };
 
 class SCCGraph {
@@ -77,7 +77,7 @@ public:
     SCCGraph(Function &F);
     ~SCCGraph();
     void buildGraph();
-    bool dfsGraph(SDDG *G, itemSet *I);
+    bool dfsGraph(SDDG *G, itemSet *I, bool genSet);
     SCCNode *getEntry();
 };
 
@@ -85,7 +85,7 @@ void addBlockSCC(BasicBlock *block, SCCNode *SCC);
 SCCNode *getSCC(BasicBlock *block);
 
 void transition(string &normalizedStr, Value *inst);
-int CountSupport(Function &F, itemSet *I);
+pair<int, set< pair<hash_t, Instruction*> > >  CountSupport(Function &F, itemSet *I, bool genSet);
 itemSet *merge_itemSet(itemSet *fst, itemSet *snd);
 void rbclear();
 

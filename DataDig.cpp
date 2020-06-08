@@ -101,7 +101,7 @@ void itemSets::printHash() {
 int support(Module &M, itemSet *I) {
     int ans = 0;
     for (auto &F : M) {
-        ans += SupportCount::CountSupport(F, I);
+        ans += SupportCount::CountSupport(F, I, 0).first;
     }
     I->setSupportValue(ans);
     return ans;

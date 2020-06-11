@@ -37,12 +37,27 @@ public:
         itemSets *FIS = getFIS(), *IIS = getIIS();
         ruleSet *PARs = new ruleSet, *NARs = new ruleSet;
         rule_generator(M, FIS, IIS, mcf / 100.0, PARs, NARs);
+
+        outs()<<"++IIS\n";
+        IIS->print(outs());
+        outs()<<"--IIS\n\n";
+        outs()<<"++FIS\n";
+        FIS->print(outs());
+        outs()<<"--FIS\n\n";
+        outs()<<"++PAR\n";
+        PARs->display(outs());
+        outs()<<"--PAR\n\n";
+        outs()<<"++NAR\n";
+        NARs->display(outs());
+        outs()<<"--NAR\n\n";
+        outs()<<"++BUGs\n";
         for(auto qwq : bugfinder::check_positive(M, PARs)) {
-            errs() << qwq.what() << "\n";
+            outs() << qwq.what() << "\n";
         }
         for(auto qwq : bugfinder::check_negative(M, NARs)) {
-            errs() << qwq.what() << "\n";
+            outs() << qwq.what() << "\n";
         }
+        outs()<<"--BUGs\n";
         return false;
     }
 };

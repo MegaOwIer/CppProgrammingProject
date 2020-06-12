@@ -64,9 +64,7 @@ void itemSets::prune() {
     set<itemSet *> delt;
     for (auto iSet : mSets) {
         for (auto item : iSet->getSet()) {
-            if (!--iSet->getSet()[item.first]) {
-                iSet->getSet().erase(item.first);
-            }
+            --iSet->getSet()[item.first];
             bool inIIS = IIS.isIn(iSet);
             iSet->getSet()[item.first]++;
             if (inIIS) {

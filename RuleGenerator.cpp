@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <utility>
 
-#include "Datadig.h"
+#include "DataDig.h"
 #include "RuleGenerator.h"
 
 namespace ruleGen {
@@ -23,7 +23,7 @@ ruleSet::~ruleSet() {
 
 void ruleSet::display(raw_ostream &os) {
     for (rule_t cur : data) {
-        cur.display();
+        cur.display(os);
         os << "\n";
     }
 }

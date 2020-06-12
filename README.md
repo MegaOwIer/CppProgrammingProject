@@ -1,7 +1,5 @@
 # FxxkingProject
 
-大作业。黄老板天下第一！！！！！
-
 ## Notice
 
 + (2020.06.02) Remenber to modify `Makefile` when necessary before you push your work.

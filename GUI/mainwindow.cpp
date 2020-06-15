@@ -1,6 +1,7 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QTextBlock>
+#include <QMessageBox>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -13,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->settingButton, SIGNAL(clicked()), this, SLOT(onBtnSettingButtonClicked()));
     connect(ui->startButton, SIGNAL(clicked()), this, SLOT(onBtnStartButtonClicked()));
     connect(ui->bugsCheckBox, SIGNAL(clicked(bool)), this, SLOT(onChkBoxBugsCheckBoxClicked(bool)));
+    connect(ui->codeButton, SIGNAL(clicked()), this, SLOT(onBtnCodeButtonClicked()));
     mfs = 10, mis = 5, min_conf = 85, cstd = 99;
     clangPath = "/usr/bin/clang";
     fileName = "";
@@ -20,15 +22,18 @@ MainWindow::MainWindow(QWidget *parent)
     allOut->setReadOnly(true), bugsOut->setReadOnly(true);
     ui->scrollArea->setWidget(allOut);
     ui->scrollArea->setWidgetResizable(true);
+    codeWindow = new Code(nullptr, &bugList);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete codeWindow;
     delete dlgSettings;
 }
 
 void MainWindow::onBtnFileButtonClicked() {
+    ui->codeButton->setEnabled(false);
     QString curPath = QDir::currentPath();
     QString dlgTitle = "Choose a file";
     QString typeFilter = "C source file(*.c)";
@@ -44,6 +49,7 @@ void MainWindow::onBtnFileButtonClicked() {
 }
 
 void MainWindow::onBtnSettingButtonClicked() {
+    ui->codeButton->setEnabled(false);
     if (dlgSettings == nullptr)
         dlgSettings = new SettingDialog(this);
 
@@ -64,6 +70,7 @@ void MainWindow::onBtnSettingButtonClicked() {
 }
 
 void MainWindow::onBtnStartButtonClicked() {
+    ui->codeButton->setEnabled(false);
     ui->fileButton->setEnabled(false);
     ui->settingButton->setEnabled(false);
     ui->bugsCheckBox->setEnabled(false);
@@ -100,14 +107,59 @@ void MainWindow::onChkBoxBugsCheckBoxClicked(bool checked) {
     }
 }
 
+void MainWindow::onBtnCodeButtonClicked() {
+    if (!codeWindow->openFile(fileName)) {                                       // Failed to load file.
+        QMessageBox::information(nullptr, "Error", "Failed to load file.");
+        return;
+    }
+
+    codeWindow->setWindowTitle(fileName);
+    codeWindow->addListItem();
+    codeWindow->show();
+}
+
 void MainWindow::procStart() {
     allOut->setText("Analysis start.\n\n");
     QString result = QString::fromLocal8Bit(proc->readAllStandardOutput());
     allOut->append(result);
 }
 
+void MainWindow::formatBugs() {
+    QTextDocument *doc = bugsOut->document();
+    int blockCount = doc->blockCount();
+    int bugCount = -1;
+    bool warning = false;
+    for (int i = 0; i < blockCount; i++) {
+        QTextBlock textBlock = doc->findBlockByNumber(i);
+        QString text = textBlock.text();
+
+        if (text == "**WARNING**") {
+            bugCount++;
+            warning = true;
+            continue;
+        }
+
+        if (warning) {                                                           // Last line is "**WARNING" and this line is the information of a bug.
+            bugList.push_back(new BugHighlight);
+            bugList[bugCount]->setInfo(text);
+        }
+        warning = false;
+
+        int start, lstPos = -1;
+        while ((start = text.indexOf(':', lstPos + 1)) != -1) {
+            lstPos = start;
+            int num = 0;
+            for (int j = start + 1; j < text.length() && text[j].isDigit(); j++) {
+                QString temp(text[j]);
+                num = num * 10 + temp.toInt();
+            }
+            if (num) bugList[bugCount]->addNum(num);
+        }
+    }
+}
+
 void MainWindow::procFinished() {
-    allOut->append("\nAnalysis completed.\n");
+    ui->codeButton->setEnabled(true);
     ui->fileButton->setEnabled(true);
     ui->settingButton->setEnabled(true);
     ui->bugsCheckBox->setEnabled(true);
@@ -131,4 +183,13 @@ void MainWindow::procFinished() {
         if (bug)
             bugsOut->append(text);
     }
+
+    for (auto iter : bugList) {
+        BugHighlight *bug = iter;
+        delete bug;
+    }
+    bugList.clear();
+    formatBugs();
+
+    allOut->append("\nAnalysis completed.\n");
 }

@@ -5,7 +5,10 @@
 #include <QTextEdit>
 #include <QProcess>
 #include <QString>
+#include <set>
 #include "settingdialog.h"
+#include "bughighlight.h"
+#include "code.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -30,13 +33,17 @@ private:
     int cstd;
     QString clangPath;
     QTextEdit *allOut, *bugsOut;
+    Code *codeWindow;
+    std::vector<BugHighlight *> bugList;
 
 private slots:
     void onBtnFileButtonClicked();
     void onBtnSettingButtonClicked();
     void onBtnStartButtonClicked();
     void onChkBoxBugsCheckBoxClicked(bool);
+    void onBtnCodeButtonClicked();
     void procStart();
     void procFinished();
+    void formatBugs();
 };
 #endif // MAINWINDOW_H

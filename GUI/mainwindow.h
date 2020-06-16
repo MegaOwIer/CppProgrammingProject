@@ -33,7 +33,6 @@ private:
     int cstd;
     QString clangPath;
     QTextEdit *allOut, *bugsOut;
-    Code *codeWindow;
     std::vector<BugHighlight *> bugList;
 
 private slots:

@@ -48,14 +48,14 @@ void Code::addListItem() {
 }
 
 bool Code::openFile(const QString &fileName) {
-    file.close();
     file.setFileName(fileName);
-    ui->listWidget->clear();
-    ui->plainTextEdit->clear();
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream textStream(&file);
+        int line = 0;
         while (!textStream.atEnd()) {
-            ui->plainTextEdit->appendPlainText(textStream.readLine());
+            line++;
+            QString tmpLine = QString("%1.  ").arg(line, 4);
+            ui->plainTextEdit->appendPlainText(tmpLine + textStream.readLine());
         }
         return true;
     }

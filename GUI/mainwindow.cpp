@@ -2,6 +2,7 @@
 #include <QFileDialog>
 #include <QTextBlock>
 #include <QMessageBox>
+#include <iostream>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -22,13 +23,11 @@ MainWindow::MainWindow(QWidget *parent)
     allOut->setReadOnly(true), bugsOut->setReadOnly(true);
     ui->scrollArea->setWidget(allOut);
     ui->scrollArea->setWidgetResizable(true);
-    codeWindow = new Code(nullptr, &bugList);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    delete codeWindow;
     delete dlgSettings;
 }
 
@@ -108,6 +107,9 @@ void MainWindow::onChkBoxBugsCheckBoxClicked(bool checked) {
 }
 
 void MainWindow::onBtnCodeButtonClicked() {
+    Code *codeWindow = new Code(nullptr, &bugList);
+    codeWindow->setAttribute(Qt::WA_DeleteOnClose);
+
     if (!codeWindow->openFile(fileName)) {                                       // Failed to load file.
         QMessageBox::information(nullptr, "Error", "Failed to load file.");
         return;

@@ -6,10 +6,13 @@
 
 namespace datadig {
 
+static itemSets FIS, IIS;
+
 itemSets::itemSets() {}
 itemSets::itemSets(itemSets *items) {
     for (auto fst : items->mSets)
         for (auto snd : items->mSets) {
+            if (!(FIS.isIn(fst)) || !(FIS.isIn(snd))) continue;
             if (fst->getCommon(snd) == fst->getSize() - 1) {
                 itemSet *nowSet;
                 nowSet = merge_itemSet(fst, snd);
@@ -21,7 +24,8 @@ itemSets::itemSets(itemSets *items) {
             } else if (fst->getCommon(snd) == fst->getSize()) {
                 for (auto pr : fst->getSet()) {
                     itemSet *nowSet;
-                    nowSet = merge_itemSet(fst, snd); 
+                    if (!pr.second) continue;
+                    nowSet = merge_itemSet(fst, snd);
                     nowSet->addItem(pr.first);
                     if (!isIn(nowSet)) {
                         mSets.insert(nowSet);
@@ -57,8 +61,6 @@ void itemSets::merge_Item(itemSet *item) {
         mSets.insert(newSet);
     }
 }
-
-static itemSets FIS, IIS;
 
 void itemSets::prune() {
     set<itemSet *> delt;
@@ -109,6 +111,7 @@ itemSets *getFIS() { return &FIS; }
 itemSets *getIIS() { return &IIS; }
 
 void find_FIS_IIS(Module &M, int mfs, int mis) {
+    set<itemSet *> delt;
     itemSets *L, *N, *S;
     L = N = S = NULL;
     L = new itemSets;
@@ -127,6 +130,20 @@ void find_FIS_IIS(Module &M, int mfs, int mis) {
             }
         }
     }
+    for (auto I : L->getSet()) {
+        int sup_num = support(M, I);
+        if (sup_num > 0 && sup_num <= mis) IIS.merge_Item(I);
+
+        if (sup_num < mfs) {
+            delt.insert(I);
+        } else
+            FIS.merge_Item(I);
+    }
+    for (auto I : delt) {
+        (L->getSet()).erase(I);
+        delete I;
+    }
+    delt.clear();
     for (int k = 2; !L->empty(); k++) {
         delete N;
         delete S;
@@ -148,9 +165,9 @@ void find_FIS_IIS(Module &M, int mfs, int mis) {
         FIS.merge_Set(L);
         IIS.merge_Set(N);
     }
-    for(auto item:IIS.getSet())
+    for (auto item : IIS.getSet())
         item->setFormal();
-    for(auto item:FIS.getSet())
+    for (auto item : FIS.getSet())
         item->setFormal();
 }
 

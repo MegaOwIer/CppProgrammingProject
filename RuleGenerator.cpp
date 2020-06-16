@@ -36,6 +36,10 @@ using std::pair;
 void rule_generator(Module &M, itemSets *FIs, itemSets *IIs, double min_conf, ruleSet *PARs,
                     ruleSet *NARs) {
     for (itemSet *I : FIs->getSet()) {
+        I->setFormal();
+        if (I->getSize() == 1) {
+            continue;
+        }
         for (pair<hash_t, int> cur : I->getSet()) {
             itemSet *tmp = new itemSet(I);
             if (cur.second == 1) {
@@ -54,6 +58,10 @@ void rule_generator(Module &M, itemSets *FIs, itemSets *IIs, double min_conf, ru
     PARs->sort();
 
     for (itemSet *I : IIs->getSet()) {
+        I->setFormal();
+        if (I->getSize() == 1) {
+            continue;
+        }
         itemSet *min_support = nullptr;
         hash_t target = -1;
         for (pair<hash_t, int> cur : I->getSet()) {

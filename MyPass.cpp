@@ -37,7 +37,6 @@ public:
         itemSets *FIS = getFIS(), *IIS = getIIS();
         ruleSet *PARs = new ruleSet, *NARs = new ruleSet;
         rule_generator(M, FIS, IIS, mcf / 100.0, PARs, NARs);
-
         outs()<<"++IIS\n";
         IIS->print(outs());
         outs()<<"--IIS\n\n";

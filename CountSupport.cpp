@@ -213,15 +213,19 @@ void SCCNode::buildRelation() {
     }
 }
 
-bool SCCNode::dfsNode(SDDG *G, itemSet *I, bool genSet) {
+bool SCCNode::dfsNode(SDDG *G, itemSet *I, bool genSet,set<SCCNode*> *visited) {
+    if(visited->find(this)!=visited->end())
+        return false;
+    visited->insert(this);
     for (auto BB : blocks)
         UsefulBlocks.insert(BB);
     for (auto toNode : getSuccessors())
-        if (toNode->dfsNode(G, I, genSet)) {
+        if (toNode->dfsNode(G, I, genSet, visited)) {
             for (auto BB : blocks)
                 UsefulBlocks.erase(BB);
             return true;
         }
+    visited->erase(this);
     if (getSuccessors().begin() == getSuccessors().end()) {
         return check(G, I, genSet);
     }
@@ -265,7 +269,8 @@ void SCCGraph::buildGraph() {
 
 bool SCCGraph::dfsGraph(SDDG *G, itemSet *I, bool genSet) {
     SCCNode *now = getEntry();
-    return now->dfsNode(G, I, genSet);
+    set<SCCNode*> visited;
+    return now->dfsNode(G, I, genSet, &visited);
 }
 
 SCCNode *SCCGraph::getEntry() { return EntryNode; }
@@ -274,6 +279,9 @@ void addShare(SDDG *G) {
     for (auto fst : G->getInterestingNodes())
         for (auto snd : G->getInterestingNodes())
             if (G->inShare(fst.first, snd.first)) {
+                // errs()<<"OK"<<"\n";
+                if(fst.second==snd.second)
+                    continue;
                 fst.second->addSuccessor(snd.second);
                 fst.second->addPredecessor(snd.second);
                 snd.second->addSuccessor(fst.second);
@@ -328,7 +336,6 @@ pair<int, SupportInfo_t> CountSupport(Function &F, itemSet *I, bool genSet) {
     SDDGF.buildSDDG();
     SDDGF.flattenSDDG();
     addShare(&SDDGF);
-
 #ifdef _LOCAL_DEBUG
     // SDDGF.dotify(1);
     // errs() << "pre flattensddg\n";
@@ -342,8 +349,13 @@ pair<int, SupportInfo_t> CountSupport(Function &F, itemSet *I, bool genSet) {
     // errs() << "\n";
     // I->printHash();
 #endif
-
-    return make_pair(SCCF.dfsGraph(&SDDGF, I, genSet), instSet);
+    pair<int, SupportInfo_t> temp = make_pair(SCCF.dfsGraph(&SDDGF, I, genSet), instSet);
+    // if(temp.first)
+    // {
+    //     I->print();
+    //     errs()<<"dont support "<< F.getName()<<"\n";
+    // }
+    return temp;
 }
 
 }  // namespace SupportCount

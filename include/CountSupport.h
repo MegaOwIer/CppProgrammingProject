@@ -77,7 +77,7 @@ public:
     set<SCCNode *> &getPredecessors();
     vector<BasicBlock *> &getBlocks();
     void buildRelation();
-    bool dfsNode(SDDG *G, itemSet *I, bool genSet);
+    bool dfsNode(SDDG *G, itemSet *I, bool genSet, set<SCCNode *> *visited);
 };
 
 class SCCGraph {

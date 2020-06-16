@@ -18,4 +18,4 @@
 + [x] (By llj & xq) 项集挖掘
 + [x] (By wcr & xq) 规则生成
 + [x] (By wcr) 缺陷检测
-+ 图形化界面
++ [x] (By hxt) 图形化界面

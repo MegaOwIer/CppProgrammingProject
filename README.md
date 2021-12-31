@@ -1,4 +1,10 @@
-# FxxkingProject
+# CppProgrammingProject
+
+## Abstract
+
+Homework for Advanced Programming II, 2020, Renmin University.
+
+A simple defect detection tool for C/C++ with GUI based on LLVM IR and [Apriori Algorithm](https://en.wikipedia.org/wiki/Apriori_algorithm).
 
 ## Notice
 
